@@ -1,7 +1,7 @@
 {
   "context": "client",
-  "identifier": "com.pa.gw-server-mods-dev",
-  "display_name": "Galactic War Server Mods DEV",
+  "identifier": "com.pa.gw-server-mods",
+  "display_name": "Galactic War Server Mods",
   "description": "Mounts your active server mods for Galactic War battles, which the base game skips. In co-op the host is the source of truth: a viewer missing a server mod the host is running is told which one and why, before the battle starts.",
   "author": "Quitch",
   "version": "1.0.0",
