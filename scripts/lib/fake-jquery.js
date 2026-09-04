@@ -201,13 +201,15 @@ function enginePromise() {
     };
   }
 
+  function then(onDone, onFail) {
+    handlers.push([onDone, onFail]);
+    if (state !== "pending") {
+      fire();
+    }
+  }
+
   return {
-    then: function (onDone, onFail) {
-      handlers.push([onDone, onFail]);
-      if (state !== "pending") {
-        fire();
-      }
-    },
+    then: then,
     resolve: settle("resolved"),
     reject: settle("rejected"),
     state: () => state,
