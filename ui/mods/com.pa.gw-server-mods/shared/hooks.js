@@ -22,14 +22,20 @@
       var before = ns.mount.sequence();
       var result = previous.apply(this, arguments);
 
-      return $.when(result).then(function () {
+      function remount() {
         // The inner wrapper may already have remounted during that call.
         if (ns.mount.sequence() !== before) {
           return true;
         }
 
         return ns.mount.run(runOptions);
-      });
+      }
+
+      // The teardown is an engine promise, so the chain starts native; stock
+      // PA calls .always() on the result, so it ends jQuery. Remounting after
+      // a teardown that failed is deliberate - the mounts are gone either way,
+      // and this is the only thing that puts them back.
+      return ns.jq(Promise.resolve(result).then(remount, remount));
     };
 
     wrapped[MARK] = true;

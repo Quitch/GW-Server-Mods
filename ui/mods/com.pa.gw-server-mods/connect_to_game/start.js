@@ -53,21 +53,22 @@
         return previous(region, mode, startParams);
       }
 
-      var deferred = $.Deferred();
-
-      ns.mount.run().always(function () {
-        $.when(previous(region, mode, startParams)).then(
-          function (data) {
+      // A mount that failed must not hold up the battle, so its outcome is
+      // dropped rather than chained. The chain starts native so it adopts
+      // whatever shape startGame returns - engine on the remote branch of
+      // api/net.js, jQuery on the local one - and ends jQuery because stock
+      // connect_to_game.js:709 calls .always() on it.
+      return ns.jq(
+        ns
+          .settled([ns.mount.run()])
+          .then(function () {
+            return previous(region, mode, startParams);
+          })
+          .then(function (data) {
             applyIdentifiers();
-            deferred.resolve(data);
-          },
-          function (data) {
-            deferred.reject(data);
-          }
-        );
-      });
-
-      return deferred.promise();
+            return data;
+          })
+      );
     };
 
     api.net.startGame[MARK] = true;

@@ -4,9 +4,9 @@
   "display_name": "Galactic War Server Mods",
   "description": "Mounts your active server mods for Galactic War battles, which the base game skips. In co-op the host is the source of truth: a viewer missing a server mod the host is running is told which one and why, before the battle starts.",
   "author": "Quitch",
-  "version": "1.0.0",
-  "build": "124673",
-  "date": "2026-08-28",
+  "version": "1.1.0",
+  "build": "124674",
+  "date": "2026-09-04",
   "signature": " ",
   "forum": "https://steamcommunity.com/app/386070/discussions/0/587310164511795299/",
   "category": ["titans", "gw", "fix", "gameplay"],
@@ -14,7 +14,16 @@
   "galacticWarMod": true,
   "scenes": {
     "icon_atlas": ["coui://ui/mods/com.pa.gw-server-mods/icon_atlas/icons.js"],
+    "gw_start": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js",
+      "coui://ui/mods/com.pa.gw-server-mods/gw_start/mount.js"
+    ],
     "connect_to_game": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
@@ -23,7 +32,15 @@
       "coui://ui/mods/com.pa.gw-server-mods/connect_to_game/start.js",
       "coui://ui/mods/com.pa.gw-server-mods/connect_to_game/gate.js"
     ],
+    "gw_coop_per_player_loadout": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js"
+    ],
     "gw_lobby": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
@@ -32,6 +49,7 @@
       "coui://ui/mods/com.pa.gw-server-mods/gw_lobby/keepalive.js"
     ],
     "gw_play": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
@@ -40,12 +58,35 @@
       "coui://ui/mods/com.pa.gw-server-mods/gw_play/launch.js"
     ],
     "live_game": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/hooks.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
       "coui://ui/mods/com.pa.gw-server-mods/live_game/remount.js"
+    ],
+    "shared_build": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared_build/ui.js"
+    ],
+    "live_game_build_bar": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
+      "coui://ui/mods/com.pa.gw-server-mods/live_game_build_bar/ui.js"
+    ],
+    "live_game_players": [
+      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
+      "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
+      "coui://ui/mods/com.pa.gw-server-mods/live_game_players/ui.js"
     ]
   }
 }

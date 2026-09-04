@@ -9,15 +9,14 @@
       .replace(/\.png$/i, "");
   }
 
+  // icon_atlas loads this file alone, with none of the shared modules, so the
+  // native chain is written out rather than going through ns.settled.
   function addMissingIcons() {
-    var deferred = $.Deferred();
-
     if (!api.file || !_.isFunction(api.file.list)) {
-      deferred.resolve(0);
-      return deferred.promise();
+      return Promise.resolve(0);
     }
 
-    api.file.list(ICON_DIR, false).then(
+    return Promise.resolve(api.file.list(ICON_DIR, false)).then(
       function (listing) {
         var files = listing && listing.length ? listing : _.keys(listing || {});
         var known = model.strategicIcons();
@@ -47,15 +46,15 @@
         }
 
         console.log("[GW-SM] strategic icons added=" + added.length);
-        deferred.resolve(added.length);
+
+        return added.length;
       },
       function () {
         console.error("[GW-SM] could not list " + ICON_DIR);
-        deferred.resolve(0);
+
+        return 0;
       }
     );
-
-    return deferred.promise();
   }
 
   function patchSendIconList() {
@@ -72,9 +71,11 @@
     model.sendIconList = function () {
       var self = this;
 
-      return addMissingIcons().always(function () {
+      function send() {
         previous.call(self);
-      });
+      }
+
+      return addMissingIcons().then(send, send);
     };
 
     model.sendIconList[MARK] = true;

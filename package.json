@@ -8,7 +8,10 @@
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
     "validate:json": "node -e \"require('fs').readdirSync('.').filter(f=>f.endsWith('.json')).forEach(f=>JSON.parse(require('fs').readFileSync(f,'utf8')))\"",
-    "verify": "npm run lint:js && npm run lint:md && npm run format:check && npm run validate:json"
+    "verify": "npm run lint:js && npm run lint:md && npm run format:check && npm run validate:json && npm run test",
+    "test": "node --test",
+    "pretest:coverage": "node -e \"require('fs').mkdirSync('coverage', { recursive: true })\"",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"ui/**/*.js\" --test-coverage-lines=80 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -16,6 +19,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-es-x": "^10.0.0",
     "globals": "^17.11.0",
+    "lodash": "3.9.3",
     "markdownlint-cli2": "^0.23.1",
     "prettier": "^3.9.6"
   }

@@ -59,11 +59,14 @@ directives.
 ## Verifying a change
 
 `npm run verify` is the pre-submit gate: `lint:js`, `lint:md`, `format:check`,
-`validate:json`.
+`validate:json`, `test`. `npm run test:coverage` adds the coverage report and fails
+under 80% lines; keep every shipped file measured rather than excluding it. The harness
+runs each shipped file against faked engine globals — see
+[`docs/testing.md`](docs/testing.md).
 
-Nothing here starts PA, and `verify` cannot catch what this mod actually does. Every
-behavioural claim needs the game loaded and a battle launched — see the verification list
-at the end of [`docs/design.md`](docs/design.md). The PA log directory under
+Nothing here starts PA, and `verify` cannot catch what this mod actually does against the
+real engine. Every behavioural claim needs the game loaded and a battle launched — see the
+verification list at the end of [`docs/design.md`](docs/design.md). The PA log directory under
 `%LOCALAPPDATA%\Uber Entertainment\Planetary Annihilation\log\` is the objective record
 for renderer failures; `Failed to load texture resource` and `Failed to load shader file`
 appear there and nowhere else.

@@ -27,6 +27,7 @@ export default defineConfig([
         loc: "readonly",
         ko: "readonly",
         CommunityModsManager: "readonly",
+        loadMods: "readonly",
         globals: "readonly",
       },
       sourceType: "script",
@@ -110,6 +111,17 @@ export default defineConfig([
       // rather than throwing. Use _.startsWith / _.endsWith.
       "es-x/no-string-prototype-startswith": "error",
       "es-x/no-string-prototype-endswith": "error",
+    },
+  },
+  {
+    // Node-side tooling, not shipped, so not bound by the Chrome 40 constraint.
+    files: ["scripts/**/*.js", "test/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "commonjs",
+      globals: {
+        ...globals.node,
+      },
     },
   },
   // Prettier config last to disable conflicting rules

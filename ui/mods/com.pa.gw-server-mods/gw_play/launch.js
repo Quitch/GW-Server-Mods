@@ -35,8 +35,11 @@
   try {
     ns.hooks.install();
 
-    // Ready before the player can click, not only once they have.
-    ns.mount.run();
+    // Ready before the player can click, not only once they have. The content
+    // remount is left to the Fight click: the galaxy map reads specs and
+    // portraits through coui:, which the root mounts serve on their own, and
+    // the remount blanks the scene for seconds. See design.md.
+    ns.mount.run({ remountContent: false });
 
     if (!patchFight("fight")) {
       ns.alarm("launch_unavailable", { fight: false });

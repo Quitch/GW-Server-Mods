@@ -1,11 +1,20 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "*"
+    ignore:
+      # lodash is pinned to 3.9.3 to match the version the base game ships and
+      # loads at runtime. It is a devDependency used only to stand in for the
+      # game's global `_` under the Node test harness (scripts/lib/scene-loader.js)
+      # - never shipped to players, so upstream lodash advisories do not apply.
+      - dependency-name: "lodash"
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"
