@@ -151,9 +151,46 @@ describe("mount.run", () => {
     assert.equal(state.mounted, true);
     assert.equal(state.sequence, 1);
     assert.equal(state.mods[0].identifier, "com.example.server");
+    const settled = JSON.parse(
+      fixture.console.lines.log
+        .at(-1)
+        .replace("[GW-SM] mounted server mods ", "")
+    );
+    assert.equal(settled.ok, true);
+    assert.equal(settled.count, 1);
+    assert.equal(typeof settled.ms, "number");
+    assert.deepEqual(Object.keys(settled.stages).sort(), [
+      "content",
+      "merge",
+      "root",
+      "server",
+      "verify",
+    ]);
     assert.equal(
-      fixture.console.lines.log.at(-1),
-      '[GW-SM] mounted server mods {"ok":true,"count":1}'
+      Object.values(settled.stages).every((ms) => typeof ms === "number"),
+      true
+    );
+  });
+
+  // PA keeps the first console argument only, so the timings ride in the
+  // one string; a run with nothing to mount still reports its total.
+  it("logs a duration for a run with no server mods and a stage that rejected", async () => {
+    const empty = scene({ cmmOptions: { serverMods: [] } });
+    await run(empty);
+    assert.match(
+      empty.console.lines.log.at(-1),
+      /^\[GW-SM\] mounted server mods \{"ok":true,"count":0,"ms":\d+,"stages":\{\}\}$/
+    );
+
+    const refused = scene({ apiOptions: { remount: () => rejected("no") } });
+    assert.equal(await run(refused), true);
+    assert.equal(
+      typeof JSON.parse(
+        refused.console.lines.log
+          .at(-1)
+          .replace("[GW-SM] mounted server mods ", "")
+      ).stages.content,
+      "number"
     );
   });
 

@@ -425,7 +425,24 @@
     });
   }
 
-  function settle(ok, mods) {
+  // Each stage's own duration, for the log line: the stages that run side by
+  // side overlap, so they do not sum to the total.
+  function timed(timing, name, work) {
+    var started = Date.now();
+
+    function record(value) {
+      timing.stages[name] = Date.now() - started;
+
+      return value;
+    }
+
+    return Promise.resolve(work).then(record, function (error) {
+      record();
+      throw error;
+    });
+  }
+
+  function settle(ok, mods, timing) {
     state = {
       mounted: ok,
       at: Date.now(),
@@ -433,38 +450,57 @@
       sequence: state.sequence + 1,
     };
 
-    ns.log("mounted server mods", { ok: ok, count: mods.length });
+    ns.log("mounted server mods", {
+      ok: ok,
+      count: mods.length,
+      ms: Date.now() - timing.started,
+      stages: timing.stages,
+    });
   }
 
   // gw_start has no Community Mods and no battle to prepare: only the root
   // mounts, so the mods' specs and images are readable there. Nothing is
   // restored when the mounts were skipped: nothing re-shadowed the merged
   // list. See design.md.
-  function mountRootOnly(mods, withContent, generation) {
+  function mountRootOnly(mods, withContent, generation, timing) {
     var roots;
 
-    return mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+    return timed(
+      timing,
+      "root",
+      mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+    )
       .then(function (result) {
         roots = result;
 
         return ns.settled([
-          withContent ? remountContent(generation) : null,
+          withContent
+            ? timed(timing, "content", remountContent(generation))
+            : null,
           roots.skipped ? null : restoreMergedUnitList(),
         ]);
       })
       .then(function () {
-        settle(roots.ok, mods);
+        settle(roots.ok, mods, timing);
 
         return roots.ok;
       });
   }
 
-  function mountForBattle(mods, withContent, generation) {
+  function mountForBattle(mods, withContent, generation, timing) {
     report("!LOC:Mounting server mods");
 
-    return mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+    return timed(
+      timing,
+      "root",
+      mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+    )
       .then(function () {
-        return ns.settled([CommunityModsManager.mountServerMods()]);
+        return timed(
+          timing,
+          "server",
+          ns.settled([CommunityModsManager.mountServerMods()])
+        );
       })
       .then(function () {
         if (withContent) {
@@ -472,18 +508,20 @@
         }
 
         return ns.settled([
-          withContent ? remountContent(generation) : null,
-          mergeUnitList(mods),
+          withContent
+            ? timed(timing, "content", remountContent(generation))
+            : null,
+          timed(timing, "merge", mergeUnitList(mods)),
           ns.manifest.detectClientRelevance(mods),
         ]);
       })
       .then(function () {
         reportUnmountableMods();
 
-        return verify(mods);
+        return timed(timing, "verify", verify(mods));
       })
       .then(function (ok) {
-        settle(ok, mods);
+        settle(ok, mods, timing);
 
         return ok;
       });
@@ -504,6 +542,8 @@
       return Promise.resolve(false);
     }
 
+    var timing = { started: Date.now(), stages: {} };
+
     return Promise.resolve(ns.manifest.load()).then(function () {
       var mods = ns.manifest.activeServerMods();
       // Read as the run starts, not when it was queued: a teardown that began
@@ -513,7 +553,7 @@
       ns.manifest.rememberScenes(mods);
 
       if (!mods.length) {
-        settle(true, []);
+        settle(true, [], timing);
 
         return true;
       }
@@ -521,8 +561,8 @@
       // Before the first mountAtRoot, while the base list is still readable.
       return ns.settled([captureVanillaUnits()]).then(function () {
         return rootOnly
-          ? mountRootOnly(mods, withContent, generation)
-          : mountForBattle(mods, withContent, generation);
+          ? mountRootOnly(mods, withContent, generation, timing)
+          : mountForBattle(mods, withContent, generation, timing);
       });
     });
   }

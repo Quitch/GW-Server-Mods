@@ -506,6 +506,13 @@ document, `live_game` in particular.
 PA's log file keeps only the **first** console argument, so every call builds one
 concatenated string. Passing `message, detail` lands in the log as `message` alone.
 
+The line every run ends with carries its timings for the same reason:
+`mounted server mods {"ok":true,"count":7,"ms":2345,"stages":{"root":..,"server":..,"content":..,"merge":..,"verify":..}}`.
+`ms` is the whole run; the stages are each one's own duration, and the three that run side
+by side (`content`, `merge` and the classification) overlap, so they do not sum to `ms`. A
+stage that was skipped reads as a few milliseconds. This is the instrument every
+performance claim about a launch is checked against, so it stays.
+
 `api.debug.log` is not used and should not be. It is a forwarder -
 `Function.apply.call(console.log, console, arguments)` - so it truncates identically, and
 it adds two problems: every call is gated on a `debug_allow_logs` local setting that is
