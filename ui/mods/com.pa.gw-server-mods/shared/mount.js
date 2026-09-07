@@ -503,7 +503,7 @@
         );
       })
       .then(function () {
-        if (withContent) {
+        if (withContent && contentRegisteredAt !== generation) {
           report("!LOC:Registering server mod content");
         }
 

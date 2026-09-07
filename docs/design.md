@@ -324,8 +324,13 @@ renderer content to register. Its commander portraits, tech card art and unit ic
 read through `coui:`, which the root mounts serve on their own, so a remount there buys
 nothing and costs the several seconds of black screen between leaving `gw_start` and the
 map appearing. The rebuild happens on the way into the battle instead, where it is
-needed and where the launch panel accounts for the wait: the patched `model.fight` and
-`connect_to_game` both run with the default options.
+needed and where the launch panel accounts for the wait. `connect_to_game` runs with the
+default options. The patched `model.fight` runs **without** the remount when
+`hooks.installed()` is true - every seam taken, the content accessor included - because
+the referee's own teardown then rebuilds the catalogue over the root zips through that
+accessor, and a rebuild before the fight would only be thrown away by the unmount that
+follows. Without the seams it keeps the default, so a battle can never start with the
+models unregistered.
 
 That makes the coalescing in `run()` load-bearing rather than a convenience. Concurrent
 callers still share one run, except a caller that needs the remount while one that
@@ -337,7 +342,9 @@ behind it the same way, while a root-only caller may still share a battle run, w
 everything it needs and more. `gw_play/launch.js` therefore installs the hooks
 with **no** options: an unmount mid-launch must still restore the catalogue, unlike
 `live_game/remount.js`, which installs with `remountContent: false` because there the
-scene is already running.
+scene is already running. A run that would remount but finds the content already
+registered for its generation skips it silently, and does not report the "Registering"
+stage to the launch panel either.
 
 ## Launch progress
 

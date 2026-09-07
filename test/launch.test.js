@@ -120,10 +120,24 @@ describe("the patched fight", () => {
       outcome = value;
     });
 
-    // No options: the battle needs the content remount the scene skipped.
-    assert.deepEqual(runs, [{ options: undefined, fought: 0 }]);
+    // Every seam is taken here, so the referee's teardown registers the
+    // content and the run before the fight need not.
+    assert.deepEqual(runs, [{ options: { remountContent: false }, fought: 0 }]);
     assert.deepEqual(fixture.fights, [{ self, args: [1, 2] }]);
     assert.equal(outcome, "fought");
+  });
+
+  it("keeps the content remount when a seam is missing", () => {
+    const fixture = scene({ apiOptions: { remount: false } });
+    const runs = [];
+    fixture.ns.mount.run = (options) => {
+      runs.push(options);
+      return resolved(true);
+    };
+
+    fixture.model.fight();
+
+    assert.deepEqual(runs, [undefined]);
   });
 
   it("does not fight until the mount settles", () => {

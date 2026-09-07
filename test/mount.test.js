@@ -1064,10 +1064,17 @@ describe("the root mount generation", () => {
 
   it("skips the root mounts and the remount on a second battle run in the same page", async () => {
     const fixture = scene();
+    const reported = stages(fixture);
 
     assert.equal(await run(fixture), true);
     assert.equal(await run(fixture), true);
 
+    // The launch panel is told about a registration only when one runs.
+    assert.deepEqual(reported, [
+      "!LOC:Mounting server mods",
+      "!LOC:Registering server mod content",
+      "!LOC:Mounting server mods",
+    ]);
     assert.equal(fixture.api.calls.zipMount.length, 1);
     assert.equal(fixture.api.calls.remount.length, 1);
     assert.equal(fixture.cmm.calls.mountServerMods, 2);
