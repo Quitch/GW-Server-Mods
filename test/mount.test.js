@@ -151,9 +151,46 @@ describe("mount.run", () => {
     assert.equal(state.mounted, true);
     assert.equal(state.sequence, 1);
     assert.equal(state.mods[0].identifier, "com.example.server");
+    const settled = JSON.parse(
+      fixture.console.lines.log
+        .at(-1)
+        .replace("[GW-SM] mounted server mods ", "")
+    );
+    assert.equal(settled.ok, true);
+    assert.equal(settled.count, 1);
+    assert.equal(typeof settled.ms, "number");
+    assert.deepEqual(Object.keys(settled.stages).sort(), [
+      "content",
+      "merge",
+      "root",
+      "server",
+      "verify",
+    ]);
     assert.equal(
-      fixture.console.lines.log.at(-1),
-      '[GW-SM] mounted server mods {"ok":true,"count":1}'
+      Object.values(settled.stages).every((ms) => typeof ms === "number"),
+      true
+    );
+  });
+
+  // PA keeps the first console argument only, so the timings ride in the
+  // one string; a run with nothing to mount still reports its total.
+  it("logs a duration for a run with no server mods and a stage that rejected", async () => {
+    const empty = scene({ cmmOptions: { serverMods: [] } });
+    await run(empty);
+    assert.match(
+      empty.console.lines.log.at(-1),
+      /^\[GW-SM\] mounted server mods \{"ok":true,"count":0,"ms":\d+,"stages":\{\}\}$/
+    );
+
+    const refused = scene({ apiOptions: { remount: () => rejected("no") } });
+    assert.equal(await run(refused), true);
+    assert.equal(
+      typeof JSON.parse(
+        refused.console.lines.log
+          .at(-1)
+          .replace("[GW-SM] mounted server mods ", "")
+      ).stages.content,
+      "number"
     );
   });
 
@@ -762,6 +799,8 @@ describe("the merged unit list", () => {
     assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
     gated = true;
 
+    // Only a run that mounts can re-shadow, and only a teardown makes it mount.
+    fixture.ns.mount.invalidate();
     const rootOnly = run(fixture, { rootOnly: true, remountContent: false });
     await flush();
     assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
@@ -805,6 +844,7 @@ describe("the merged unit list", () => {
     });
 
     assert.equal(await run(fixture), true);
+    fixture.ns.mount.invalidate();
     assert.equal(
       await run(fixture, { rootOnly: true, remountContent: false }),
       true
@@ -1007,5 +1047,188 @@ describe("mount.run rootOnly", () => {
     await flush();
 
     assert.equal(fixture.ns.mount.sequence(), 1);
+  });
+});
+
+// Root mounts survive until the next unmountAllMemoryFiles, and the hooks bump
+// the generation as each teardown starts, so a run mounts and registers only
+// when its generation or its mod set differs from the last mounts made.
+describe("the root mount generation", () => {
+  it("starts at one and invalidate() advances it", () => {
+    const fixture = scene();
+
+    assert.equal(fixture.ns.mount.generation(), 1);
+    fixture.ns.mount.invalidate();
+    assert.equal(fixture.ns.mount.generation(), 2);
+  });
+
+  it("skips the root mounts and the remount on a second battle run in the same page", async () => {
+    const fixture = scene();
+    const reported = stages(fixture);
+
+    assert.equal(await run(fixture), true);
+    assert.equal(await run(fixture), true);
+
+    // The launch panel is told about a registration only when one runs.
+    assert.deepEqual(reported, [
+      "!LOC:Mounting server mods",
+      "!LOC:Registering server mod content",
+      "!LOC:Mounting server mods",
+    ]);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(fixture.api.calls.remount.length, 1);
+    assert.equal(fixture.cmm.calls.mountServerMods, 2);
+    assert.equal(fixture.api.calls.mountMemoryFiles.length, 2);
+    assert.equal(fixture.ns.mount.sequence(), 2);
+  });
+
+  it("resolves a root-only run after a battle run without mounting or restoring", async () => {
+    const fixture = scene();
+
+    assert.equal(await run(fixture), true);
+    assert.equal(
+      await run(fixture, { rootOnly: true, remountContent: false }),
+      true
+    );
+
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
+    assert.equal(
+      fixture.console.lines.log.some((line) =>
+        line.startsWith("[GW-SM] restored merged unit list")
+      ),
+      false
+    );
+    assert.equal(fixture.ns.mount.sequence(), 2);
+  });
+
+  it("mounts and remounts again after invalidate()", async () => {
+    const fixture = scene();
+
+    await run(fixture);
+    fixture.ns.mount.invalidate();
+    assert.equal(await run(fixture), true);
+
+    assert.equal(fixture.api.calls.zipMount.length, 2);
+    assert.equal(fixture.api.calls.remount.length, 2);
+  });
+
+  it("mounts again when the mod set changes at the same generation", async () => {
+    const mods = [mod()];
+    const fixture = scene({ cmmOptions: { serverMods: mods } });
+
+    await run(fixture);
+    mods.push(
+      mod({
+        identifier: "com.example.second",
+        installedPath: "/download/com.example.second.zip",
+      })
+    );
+    await run(fixture);
+
+    assert.deepEqual(
+      fixture.api.calls.zipMount.map((call) => call[0]),
+      [
+        "/download/com.example.server.zip",
+        "/download/com.example.server.zip",
+        "/download/com.example.second.zip",
+      ]
+    );
+    assert.equal(fixture.api.calls.remount.length, 2);
+  });
+
+  it("retries a root mount that failed", async () => {
+    let attempts = 0;
+    const fixture = scene({
+      apiOptions: { zipMount: () => resolved(++attempts > 1) },
+    });
+
+    await run(fixture);
+    assert.equal(fixture.alarm("mount_failed").length, 1);
+    await run(fixture);
+
+    assert.equal(fixture.api.calls.zipMount.length, 2);
+  });
+
+  // A teardown that starts while a run is in flight drops that run's mounts;
+  // the run queued behind it must see the new generation, not the one current
+  // when it was queued.
+  it("reads the generation when a queued run starts", async () => {
+    const pending = Deferred();
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => pending.promise(),
+      },
+    });
+
+    fixture.ns.mount.run({ remountContent: false });
+    const queued = fixture.ns.mount.run();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+
+    fixture.ns.mount.invalidate();
+    pending.resolve();
+    assert.equal(await queued, true);
+
+    assert.equal(fixture.api.calls.zipMount.length, 2);
+    assert.equal(fixture.api.calls.remount.length, 1);
+  });
+
+  it("does not skip the remount when the engine had none to run", async () => {
+    const fixture = scene({ apiOptions: { remount: false } });
+
+    await run(fixture);
+    await run(fixture);
+
+    assert.equal(fixture.alarm("content_remount_unavailable").length, 2);
+  });
+});
+
+describe("the content accessor halves", () => {
+  it("mounts the roots for the active set and resolves with the generation", async () => {
+    const fixture = scene();
+
+    assert.equal(await fixture.ns.mount.beforeContentRemount(), 1);
+    assert.deepEqual(fixture.api.calls.zipMount, [
+      ["/download/com.example.server.zip", "/", false],
+    ]);
+
+    // A run under the same generation then finds them current.
+    fixture.ns.mount.contentRegistered(1);
+    assert.equal(await run(fixture), true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(fixture.api.calls.remount.length, 0);
+  });
+
+  it("captures the base list before its first mount", async () => {
+    const fixture = scene();
+
+    await fixture.ns.mount.beforeContentRemount();
+
+    assert.equal(fixture.$.ajaxCalls[0].url, ROOT_LIST);
+  });
+
+  it("mounts nothing without a listing, a zip mount or any mods", async () => {
+    const absent = scene({ cmm: null });
+    assert.equal(await absent.ns.mount.beforeContentRemount(), 1);
+    assert.equal(absent.api.calls.zipMount.length, 0);
+
+    const noZip = scene({ apiOptions: { zipMount: false } });
+    assert.equal(await noZip.ns.mount.beforeContentRemount(), 1);
+
+    const empty = scene({ cmmOptions: { serverMods: [] } });
+    assert.equal(await empty.ns.mount.beforeContentRemount(), 1);
+    assert.equal(empty.api.calls.zipMount.length, 0);
+  });
+
+  it("does not register content for a generation the roots were not mounted under", async () => {
+    const fixture = scene();
+
+    // Registered before any root mount: the run's mounts clear it.
+    fixture.ns.mount.contentRegistered(1);
+    assert.equal(await run(fixture), true);
+
+    assert.equal(fixture.api.calls.remount.length, 1);
   });
 });

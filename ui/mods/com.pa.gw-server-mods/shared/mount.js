@@ -17,6 +17,14 @@
   var runningWithContent = false;
   var runningRootOnly = false;
 
+  // Root mounts are dropped by every unmountAllMemoryFiles, and the hooks bump
+  // the generation as each teardown starts, so a run compares the generation
+  // it read on entry with the one its mounts were made under. See design.md.
+  var rootGeneration = 1;
+  var rootMountedAt = 0;
+  var rootMountedFor = "";
+  var contentRegisteredAt = 0;
+
   // A read that failed is a read that found nothing; nothing here treats the
   // two differently, and none of these may reject.
   function nothing() {
@@ -58,15 +66,97 @@
     }, failed);
   }
 
-  // spec:// rejects a query string, so cache-busting it returns 404.
-  // Mounting alone leaves models and textures unregistered with the renderer.
-  function remountContent() {
-    if (!api.content || !_.isFunction(api.content.remount)) {
-      ns.alarm("content_remount_unavailable", {});
-      return Promise.resolve();
+  function rootPathKey(mods) {
+    return _.map(
+      _.filter(mods, function (mod) {
+        return !mod.fileSystem;
+      }),
+      function (mod) {
+        return mod.installedPath;
+      }
+    )
+      .sort()
+      .join("\n");
+  }
+
+  function rootMountsCurrent(mods, generation) {
+    return rootMountedAt === generation && rootMountedFor === rootPathKey(mods);
+  }
+
+  // The zips are already at "/" when the same set was mounted under this
+  // generation, so the batch is skipped; a set that changed - a faction
+  // toggled - mounts again whatever the generation.
+  function mountRoots(mods, generation) {
+    if (rootMountsCurrent(mods, generation)) {
+      return Promise.resolve({ ok: true, skipped: true });
     }
 
-    return Promise.resolve(api.content.remount());
+    return ns.settled(_.map(mods, mountAtRoot)).then(function (results) {
+      var ok = !_.contains(results, false);
+
+      // Whatever the catalogue covered, it was not these mounts.
+      contentRegisteredAt = 0;
+
+      if (ok) {
+        rootMountedAt = generation;
+        rootMountedFor = rootPathKey(mods);
+      }
+
+      return { ok: ok, skipped: false };
+    });
+  }
+
+  // The content accessor's first half: the root zips for the active set, so
+  // the rebuild about to run covers them. Resolves with the generation the
+  // mounts were made under, for contentRegistered once the rebuild is done.
+  function beforeContentRemount() {
+    var generation = rootGeneration;
+
+    if (!ns.manifest.listed() || !zipMountAvailable()) {
+      return Promise.resolve(generation);
+    }
+
+    var mods = ns.manifest
+      .activeServerMods()
+      .concat(ns.manifest.pairedClientMods());
+
+    if (!mods.length) {
+      return Promise.resolve(generation);
+    }
+
+    return ns
+      .settled([captureVanillaUnits()])
+      .then(function () {
+        return mountRoots(mods, generation);
+      })
+      .then(function () {
+        return generation;
+      });
+  }
+
+  function contentRegistered(generation) {
+    contentRegisteredAt = generation;
+  }
+
+  // spec:// rejects a query string, so cache-busting it returns 404.
+  // Mounting alone leaves models and textures unregistered with the renderer.
+  // Skipped when the catalogue was already rebuilt over this generation's root
+  // mounts, by this mod or by Community Mods through the hooks.
+  function remountContent(generation) {
+    if (contentRegisteredAt === generation) {
+      return Promise.resolve(false);
+    }
+
+    if (!api.content || !_.isFunction(api.content.remount)) {
+      ns.alarm("content_remount_unavailable", {});
+      return Promise.resolve(false);
+    }
+
+    return Promise.resolve(api.content.remount()).then(function () {
+      contentRegisteredAt = generation;
+
+      return true;
+    });
   }
 
   function readUnitList(url) {
@@ -335,7 +425,24 @@
     });
   }
 
-  function settle(ok, mods) {
+  // Each stage's own duration, for the log line: the stages that run side by
+  // side overlap, so they do not sum to the total.
+  function timed(timing, name, work) {
+    var started = Date.now();
+
+    function record(value) {
+      timing.stages[name] = Date.now() - started;
+
+      return value;
+    }
+
+    return Promise.resolve(work).then(record, function (error) {
+      record();
+      throw error;
+    });
+  }
+
+  function settle(ok, mods, timing) {
     state = {
       mounted: ok,
       at: Date.now(),
@@ -343,66 +450,78 @@
       sequence: state.sequence + 1,
     };
 
-    ns.log("mounted server mods", { ok: ok, count: mods.length });
+    ns.log("mounted server mods", {
+      ok: ok,
+      count: mods.length,
+      ms: Date.now() - timing.started,
+      stages: timing.stages,
+    });
   }
 
   // gw_start has no Community Mods and no battle to prepare: only the root
-  // mounts, so the mods' specs and images are readable there. See design.md.
-  function mountRootOnly(mods, withContent) {
-    var rootMounts = _.map(
-      mods.concat(ns.manifest.pairedClientMods()),
-      mountAtRoot
-    );
-    var ok;
+  // mounts, so the mods' specs and images are readable there. Nothing is
+  // restored when the mounts were skipped: nothing re-shadowed the merged
+  // list. See design.md.
+  function mountRootOnly(mods, withContent, generation, timing) {
+    var roots;
 
-    return ns
-      .settled(rootMounts)
-      .then(function (results) {
-        ok = !_.contains(results, false);
+    return timed(
+      timing,
+      "root",
+      mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+    )
+      .then(function (result) {
+        roots = result;
 
         return ns.settled([
-          withContent ? remountContent() : null,
-          restoreMergedUnitList(),
+          withContent
+            ? timed(timing, "content", remountContent(generation))
+            : null,
+          roots.skipped ? null : restoreMergedUnitList(),
         ]);
       })
       .then(function () {
-        settle(ok, mods);
+        settle(roots.ok, mods, timing);
 
-        return ok;
+        return roots.ok;
       });
   }
 
-  function mountForBattle(mods, withContent) {
+  function mountForBattle(mods, withContent, generation, timing) {
     report("!LOC:Mounting server mods");
 
-    var rootMounts = _.map(
-      mods.concat(ns.manifest.pairedClientMods()),
-      mountAtRoot
-    );
-
-    return ns
-      .settled(rootMounts)
+    return timed(
+      timing,
+      "root",
+      mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+    )
       .then(function () {
-        return ns.settled([CommunityModsManager.mountServerMods()]);
+        return timed(
+          timing,
+          "server",
+          ns.settled([CommunityModsManager.mountServerMods()])
+        );
       })
       .then(function () {
-        if (withContent) {
+        if (withContent && contentRegisteredAt !== generation) {
           report("!LOC:Registering server mod content");
         }
 
         return ns.settled([
-          withContent ? remountContent() : null,
-          mergeUnitList(mods),
+          withContent
+            ? timed(timing, "content", remountContent(generation))
+            : null,
+          timed(timing, "merge", mergeUnitList(mods)),
           ns.manifest.detectClientRelevance(mods),
         ]);
       })
       .then(function () {
         reportUnmountableMods();
 
-        return verify(mods);
+        return timed(timing, "verify", verify(mods));
       })
       .then(function (ok) {
-        settle(ok, mods);
+        settle(ok, mods, timing);
 
         return ok;
       });
@@ -423,13 +542,18 @@
       return Promise.resolve(false);
     }
 
+    var timing = { started: Date.now(), stages: {} };
+
     return Promise.resolve(ns.manifest.load()).then(function () {
       var mods = ns.manifest.activeServerMods();
+      // Read as the run starts, not when it was queued: a teardown that began
+      // in between has dropped the mounts the queued run is about to check.
+      var generation = rootGeneration;
 
       ns.manifest.rememberScenes(mods);
 
       if (!mods.length) {
-        settle(true, []);
+        settle(true, [], timing);
 
         return true;
       }
@@ -437,8 +561,8 @@
       // Before the first mountAtRoot, while the base list is still readable.
       return ns.settled([captureVanillaUnits()]).then(function () {
         return rootOnly
-          ? mountRootOnly(mods, withContent)
-          : mountForBattle(mods, withContent);
+          ? mountRootOnly(mods, withContent, generation, timing)
+          : mountForBattle(mods, withContent, generation, timing);
       });
     });
   }
@@ -500,6 +624,16 @@
 
   ns.mount = {
     run: run,
+    // Called by the hooks as a teardown starts: the root mounts and the
+    // catalogue built over them are gone, whatever a run in flight recorded.
+    invalidate: function () {
+      rootGeneration += 1;
+    },
+    generation: function () {
+      return rootGeneration;
+    },
+    beforeContentRemount: beforeContentRemount,
+    contentRegistered: contentRegistered,
     sequence: function () {
       return state.sequence;
     },

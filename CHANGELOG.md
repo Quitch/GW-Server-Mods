@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v1.2.0 - 2026-09-07
+
+- Galactic War battles launch faster: server mod content is registered once per teardown, inside Community Mods' own rebuild, instead of a second time afterwards - about 10 seconds less per solo launch and 15 in co-op, with the same units and textures
+
 ## v1.1.0 - 2026-09-04
 
 - Server mods' own scene scripts now load in Galactic War battles: build bar tabs, hotkey grids, player list theming and in-game mechanics such as Bugs' research

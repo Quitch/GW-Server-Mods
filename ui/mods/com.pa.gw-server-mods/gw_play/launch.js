@@ -20,7 +20,14 @@
       var self = this;
       var args = arguments;
 
-      return ns.mount.run().then(function () {
+      // With every seam taken, the referee's own teardown registers the
+      // content over the root zips; without them nothing else would, and a
+      // battle must never start with the models unregistered. See design.md.
+      var options = ns.hooks.installed()
+        ? { remountContent: false }
+        : undefined;
+
+      return ns.mount.run(options).then(function () {
         return previous.apply(self, args);
       });
     };
