@@ -82,7 +82,9 @@ scene mod loads:
 | `model.send_message`                   | Created in `app.registerWithCoherent`, which runs _after_ `loadSceneMods`   |
 
 Each is taken with an `Object.defineProperty` accessor that re-wraps whatever is
-assigned, rather than reading the value once. A repeating timer was tried for the first
+assigned, rather than reading the value once. `api.content.remount` is taken the same
+way for a different reason - it exists at load time, but the same accessor shape costs
+nothing and survives a reassignment - see "The content catalogue". A repeating timer was tried for the first
 of them and is the wrong tool: it is a race, and it stops defending after a fixed number
 of tries. **Anything a scene sets up during its own boot should be taken this way.**
 
@@ -248,6 +250,24 @@ Mods `gw_referee` state script reassigns it after the scene loads. `shared/hooks
 an accessor so whatever is assigned gets re-wrapped, which is deterministic where a repeating
 timer is a race that also gives up after a fixed number of tries.
 
+### Mount generations
+
+Zip mounts at `/` are dropped by that same `unmountAllMemoryFiles`, and by nothing else in a
+scene's life, so `mount.js` counts teardowns rather than probing the filesystem. The hooks bump
+a **root generation** as each teardown starts; a run reads the generation when it starts - not
+when it was queued, since a teardown can begin in between - and records it against the sorted
+zip paths its root mounts covered. A later run under the same generation and the same path set
+skips the root mounts, and a root-only run that skipped them also skips the merged-list restore,
+because nothing re-shadowed the memory file. The restore is therefore reached only after a
+teardown. A path set that changed - a faction toggled in Community Mods - mounts again whatever
+the generation, which is what keeps the 575 -> disable -> 336 -> re-enable -> 575 walk true.
+
+The content catalogue follows the same rule: `api.content.remount()` is recorded against the
+generation whose root mounts it covered, and a run whose generation is already registered skips
+it. Root mounts recorded by a run that was in flight when a teardown began carry the old
+generation, so the next run mounts again; a batch with a failed mount records nothing and is
+retried. All of this is per page: a new scene starts at "nothing mounted", exactly as before.
+
 ### A faction's art is split across two mods
 
 Legion ships its **models** in the server mod and its **textures** in the paired client
@@ -279,13 +299,38 @@ It must **not** run during a battle: it blanks the scene, and the models are alr
 loaded by then, so `live_game` holds the mounts with `remountContent: false`. Zip mounts
 themselves survive a remount - that was checked directly, before and after.
 
+Community Mods rebuilds it too, inside every teardown: `remountClientMods()` unmounts,
+mounts its client zips and calls `api.content.remount()` - before this mod's run has put
+the root zips back, so that rebuild never covered them and the run had to pay a second
+one, ~4 s each, twice per solo launch and more in co-op. `shared/hooks.js` therefore takes
+`api.content.remount` with an accessor: the wrapper mounts the root zips for the active
+set first (`mount.beforeContentRemount`, the same generation-checked batch a run uses),
+calls the real remount, and records the generation as registered
+(`mount.contentRegistered`). The run queued behind the teardown then finds its root mounts
+current and its content registered, and skips both. This mod's own `remountContent()`
+also goes through the accessor; the check finds the mounts current and the call is just
+the real remount plus the record. The accessor exists only in the scenes that install the
+hooks - `gw_play`, `connect_to_game`, `live_game`, `gw_lobby` - so `start` and
+`community_mods` are untouched. Wrapping `CommunityModsManager.mountClientMods` or
+`mountZipMods` instead was rejected: both are manager internals rather than the engine seam
+this mod already documents taking, and `mountClientMods` also runs in `start`.
+
+Both teardown wrappers call `mount.invalidate()` before the teardown itself runs, so the
+generation has moved before anything is dropped. The nested wrappers on one teardown bump
+it twice; nothing mounts between the two bumps, so that is harmless.
+
 `gw_play` passes the same option, for the neighbouring reason: the galaxy map has no
 renderer content to register. Its commander portraits, tech card art and unit icons are
 read through `coui:`, which the root mounts serve on their own, so a remount there buys
 nothing and costs the several seconds of black screen between leaving `gw_start` and the
 map appearing. The rebuild happens on the way into the battle instead, where it is
-needed and where the launch panel accounts for the wait: the patched `model.fight` and
-`connect_to_game` both run with the default options.
+needed and where the launch panel accounts for the wait. `connect_to_game` runs with the
+default options. The patched `model.fight` runs **without** the remount when
+`hooks.installed()` is true - every seam taken, the content accessor included - because
+the referee's own teardown then rebuilds the catalogue over the root zips through that
+accessor, and a rebuild before the fight would only be thrown away by the unmount that
+follows. Without the seams it keeps the default, so a battle can never start with the
+models unregistered.
 
 That makes the coalescing in `run()` load-bearing rather than a convenience. Concurrent
 callers still share one run, except a caller that needs the remount while one that
@@ -297,7 +342,9 @@ behind it the same way, while a root-only caller may still share a battle run, w
 everything it needs and more. `gw_play/launch.js` therefore installs the hooks
 with **no** options: an unmount mid-launch must still restore the catalogue, unlike
 `live_game/remount.js`, which installs with `remountContent: false` because there the
-scene is already running.
+scene is already running. A run that would remount but finds the content already
+registered for its generation skips it silently, and does not report the "Registering"
+stage to the launch panel either.
 
 ## Launch progress
 
@@ -466,6 +513,13 @@ document, `live_game` in particular.
 PA's log file keeps only the **first** console argument, so every call builds one
 concatenated string. Passing `message, detail` lands in the log as `message` alone.
 
+The line every run ends with carries its timings for the same reason:
+`mounted server mods {"ok":true,"count":7,"ms":2345,"stages":{"root":..,"server":..,"content":..,"merge":..,"verify":..}}`.
+`ms` is the whole run; the stages are each one's own duration, and the three that run side
+by side (`content`, `merge` and the classification) overlap, so they do not sum to `ms`. A
+stage that was skipped reads as a few milliseconds. This is the instrument every
+performance claim about a launch is checked against, so it stays.
+
 `api.debug.log` is not used and should not be. It is a forwarder -
 `Function.apply.call(console.log, console, arguments)` - so it truncates identically, and
 it adds two problems: every call is gated on a `debug_allow_logs` local setting that is
@@ -509,3 +563,7 @@ faked; whether the engine behaves as faked is verified by loading the game.
 9. A Galactic War battle with Legion, Bugs and Exiles — Legion's build bar tabs and
    hotkeys, a Bugs research station unlocking a unit, an Exiles extractor firing on its
    own; then the same in a skirmish, where each must still load exactly once.
+10. A solo launch shows one `Applying Unit Spec Tag` per referee teardown, the run after each
+    reads `"root":0` and `"content":0-5` in its `mounted server mods` line, and
+    `coui://pa/units/unit_list.json` holds the merged count before and after; then disable a
+    faction in Community Mods and re-enable it, and the count must drop and come back.

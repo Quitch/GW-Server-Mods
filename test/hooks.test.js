@@ -16,6 +16,7 @@ function scene(options) {
   const fixture = sharedScene(options);
   const runs = [];
   let sequence = 0;
+  const events = [];
   fixture.ns.mount = {
     run: (opts) => {
       runs.push(opts);
@@ -26,8 +27,19 @@ function scene(options) {
     bump: () => {
       sequence += 1;
     },
+    invalidate: () => {
+      events.push("invalidate");
+    },
+    beforeContentRemount: () => {
+      events.push("roots");
+      return Promise.resolve(7);
+    },
+    contentRegistered: (generation) => {
+      events.push("registered " + generation);
+    },
   };
   fixture.runs = runs;
+  fixture.events = events;
   return fixture;
 }
 
@@ -36,10 +48,12 @@ describe("hooks.install", () => {
     const fixture = scene();
 
     assert.equal(fixture.ns.hooks.install(), true);
+    assert.equal(fixture.ns.hooks.installed(), true);
     assert.deepEqual(fixture.codes(), []);
     assert.deepEqual(fixture.console.lines.log, [
       "[GW-SM] unmountAllMemoryFiles accessor installed",
       "[GW-SM] remountClientMods wrapped",
+      "[GW-SM] content remount accessor installed",
     ]);
   });
 
@@ -87,7 +101,144 @@ describe("hooks.install", () => {
     await flush();
 
     assert.equal(fixture.runs.length, 2);
-    assert.equal(fixture.console.lines.log.length, 2);
+    assert.equal(fixture.console.lines.log.length, 3);
+  });
+
+  it("reports not installed while any seam is missing, without an alarm for the content one", () => {
+    const fixture = scene({ apiOptions: { remount: false } });
+
+    assert.equal(fixture.ns.hooks.install(), true);
+    assert.equal(fixture.ns.hooks.installed(), false);
+    assert.deepEqual(fixture.codes(), []);
+
+    const noUnmount = scene({ apiOptions: { unmountAllMemoryFiles: false } });
+    noUnmount.ns.hooks.install();
+    assert.equal(noUnmount.ns.hooks.installed(), false);
+
+    const fresh = scene();
+    assert.equal(fresh.ns.hooks.installed(), false);
+  });
+});
+
+describe("the teardown wrappers and the generation", () => {
+  it("invalidate before the teardown runs, on both seams", async () => {
+    const order = [];
+    const fixture = scene({
+      apiOptions: {
+        unmountAllMemoryFiles: () => {
+          order.push("unmount");
+          return resolved();
+        },
+      },
+      cmmOptions: {
+        remountClientMods: () => {
+          order.push("remountClientMods");
+          return resolved();
+        },
+      },
+    });
+    fixture.ns.hooks.install();
+
+    fixture.api.file.unmountAllMemoryFiles();
+    assert.deepEqual(fixture.events, ["invalidate"]);
+    assert.deepEqual(order, ["unmount"]);
+
+    await flush();
+    fixture.cmm.remountClientMods();
+    assert.deepEqual(fixture.events, ["invalidate", "invalidate"]);
+    assert.deepEqual(order, ["unmount", "remountClientMods"]);
+  });
+});
+
+describe("the content remount accessor", () => {
+  it("mounts the root zips before the real remount and records the generation after it", async () => {
+    const pending = enginePromise();
+    const fixture = scene({ apiOptions: { remount: () => pending } });
+    fixture.ns.hooks.install();
+    let settled;
+
+    fixture.api.content.remount().always(() => {
+      settled = true;
+    });
+    await flush();
+
+    assert.deepEqual(fixture.events, ["roots"]);
+    assert.equal(fixture.api.calls.remount.length, 1);
+    assert.equal(settled, undefined);
+
+    pending.resolve("done");
+    await flush();
+
+    assert.deepEqual(fixture.events, ["roots", "registered 7"]);
+    assert.equal(settled, true);
+  });
+
+  it("forwards this, the arguments and the result", async () => {
+    const seen = [];
+    const fixture = scene({
+      apiOptions: {
+        remount: function () {
+          seen.push(Array.prototype.slice.call(arguments));
+          return resolved("value");
+        },
+      },
+    });
+    fixture.ns.hooks.install();
+    let result;
+
+    fixture.api.content.remount("a").then((value) => {
+      result = value;
+    });
+    await flush();
+
+    assert.deepEqual(seen, [["a"]]);
+    assert.equal(result, "value");
+  });
+
+  it("survives a reassigned remount and keeps a non-function as it is", async () => {
+    const fixture = scene();
+    fixture.ns.hooks.install();
+    let replaced = 0;
+
+    fixture.api.content.remount = () => {
+      replaced += 1;
+    };
+    fixture.api.content.remount();
+    await flush();
+
+    assert.equal(replaced, 1);
+    assert.equal(fixture.api.content.remount.__gwServerModsWrapped, true);
+    assert.deepEqual(fixture.events, ["roots", "registered 7"]);
+
+    fixture.api.content.remount = "gone";
+    assert.equal(fixture.api.content.remount, "gone");
+  });
+
+  it("does not register content after a remount that rejected", async () => {
+    const failing = enginePromise();
+    const fixture = scene({ apiOptions: { remount: () => failing } });
+    fixture.ns.hooks.install();
+    let failed;
+
+    fixture.api.content.remount().fail(() => {
+      failed = true;
+    });
+    failing.reject("refused");
+    await flush();
+
+    assert.deepEqual(fixture.events, ["roots"]);
+    assert.equal(failed, true);
+  });
+
+  it("installs once", () => {
+    const fixture = scene();
+    fixture.ns.hooks.install();
+    const wrapped = fixture.api.content.remount;
+
+    fixture.ns.hooks.install();
+    fixture.api.content.remount = wrapped;
+
+    assert.equal(fixture.api.content.remount, wrapped);
   });
 });
 
