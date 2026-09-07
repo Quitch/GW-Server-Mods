@@ -248,6 +248,24 @@ Mods `gw_referee` state script reassigns it after the scene loads. `shared/hooks
 an accessor so whatever is assigned gets re-wrapped, which is deterministic where a repeating
 timer is a race that also gives up after a fixed number of tries.
 
+### Mount generations
+
+Zip mounts at `/` are dropped by that same `unmountAllMemoryFiles`, and by nothing else in a
+scene's life, so `mount.js` counts teardowns rather than probing the filesystem. The hooks bump
+a **root generation** as each teardown starts; a run reads the generation when it starts - not
+when it was queued, since a teardown can begin in between - and records it against the sorted
+zip paths its root mounts covered. A later run under the same generation and the same path set
+skips the root mounts, and a root-only run that skipped them also skips the merged-list restore,
+because nothing re-shadowed the memory file. The restore is therefore reached only after a
+teardown. A path set that changed - a faction toggled in Community Mods - mounts again whatever
+the generation, which is what keeps the 575 -> disable -> 336 -> re-enable -> 575 walk true.
+
+The content catalogue follows the same rule: `api.content.remount()` is recorded against the
+generation whose root mounts it covered, and a run whose generation is already registered skips
+it. Root mounts recorded by a run that was in flight when a teardown began carry the old
+generation, so the next run mounts again; a batch with a failed mount records nothing and is
+retried. All of this is per page: a new scene starts at "nothing mounted", exactly as before.
+
 ### A faction's art is split across two mods
 
 Legion ships its **models** in the server mod and its **textures** in the paired client
