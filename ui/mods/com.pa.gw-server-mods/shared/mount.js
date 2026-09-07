@@ -106,6 +106,38 @@
     });
   }
 
+  // The content accessor's first half: the root zips for the active set, so
+  // the rebuild about to run covers them. Resolves with the generation the
+  // mounts were made under, for contentRegistered once the rebuild is done.
+  function beforeContentRemount() {
+    var generation = rootGeneration;
+
+    if (!ns.manifest.listed() || !zipMountAvailable()) {
+      return Promise.resolve(generation);
+    }
+
+    var mods = ns.manifest
+      .activeServerMods()
+      .concat(ns.manifest.pairedClientMods());
+
+    if (!mods.length) {
+      return Promise.resolve(generation);
+    }
+
+    return ns
+      .settled([captureVanillaUnits()])
+      .then(function () {
+        return mountRoots(mods, generation);
+      })
+      .then(function () {
+        return generation;
+      });
+  }
+
+  function contentRegistered(generation) {
+    contentRegisteredAt = generation;
+  }
+
   // spec:// rejects a query string, so cache-busting it returns 404.
   // Mounting alone leaves models and textures unregistered with the renderer.
   // Skipped when the catalogue was already rebuilt over this generation's root
@@ -560,6 +592,8 @@
     generation: function () {
       return rootGeneration;
     },
+    beforeContentRemount: beforeContentRemount,
+    contentRegistered: contentRegistered,
     sequence: function () {
       return state.sequence;
     },

@@ -82,7 +82,9 @@ scene mod loads:
 | `model.send_message`                   | Created in `app.registerWithCoherent`, which runs _after_ `loadSceneMods`   |
 
 Each is taken with an `Object.defineProperty` accessor that re-wraps whatever is
-assigned, rather than reading the value once. A repeating timer was tried for the first
+assigned, rather than reading the value once. `api.content.remount` is taken the same
+way for a different reason - it exists at load time, but the same accessor shape costs
+nothing and survives a reassignment - see "The content catalogue". A repeating timer was tried for the first
 of them and is the wrong tool: it is a race, and it stops defending after a fixed number
 of tries. **Anything a scene sets up during its own boot should be taken this way.**
 
@@ -296,6 +298,26 @@ invisible.
 It must **not** run during a battle: it blanks the scene, and the models are already
 loaded by then, so `live_game` holds the mounts with `remountContent: false`. Zip mounts
 themselves survive a remount - that was checked directly, before and after.
+
+Community Mods rebuilds it too, inside every teardown: `remountClientMods()` unmounts,
+mounts its client zips and calls `api.content.remount()` - before this mod's run has put
+the root zips back, so that rebuild never covered them and the run had to pay a second
+one, ~4 s each, twice per solo launch and more in co-op. `shared/hooks.js` therefore takes
+`api.content.remount` with an accessor: the wrapper mounts the root zips for the active
+set first (`mount.beforeContentRemount`, the same generation-checked batch a run uses),
+calls the real remount, and records the generation as registered
+(`mount.contentRegistered`). The run queued behind the teardown then finds its root mounts
+current and its content registered, and skips both. This mod's own `remountContent()`
+also goes through the accessor; the check finds the mounts current and the call is just
+the real remount plus the record. The accessor exists only in the scenes that install the
+hooks - `gw_play`, `connect_to_game`, `live_game`, `gw_lobby` - so `start` and
+`community_mods` are untouched. Wrapping `CommunityModsManager.mountClientMods` or
+`mountZipMods` instead was rejected: both are manager internals rather than the engine seam
+this mod already documents taking, and `mountClientMods` also runs in `start`.
+
+Both teardown wrappers call `mount.invalidate()` before the teardown itself runs, so the
+generation has moved before anything is dropped. The nested wrappers on one teardown bump
+it twice; nothing mounts between the two bumps, so that is harmless.
 
 `gw_play` passes the same option, for the neighbouring reason: the galaxy map has no
 renderer content to register. Its commander portraits, tech card art and unit icons are

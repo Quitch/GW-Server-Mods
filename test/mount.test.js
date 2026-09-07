@@ -1140,3 +1140,51 @@ describe("the root mount generation", () => {
     assert.equal(fixture.alarm("content_remount_unavailable").length, 2);
   });
 });
+
+describe("the content accessor halves", () => {
+  it("mounts the roots for the active set and resolves with the generation", async () => {
+    const fixture = scene();
+
+    assert.equal(await fixture.ns.mount.beforeContentRemount(), 1);
+    assert.deepEqual(fixture.api.calls.zipMount, [
+      ["/download/com.example.server.zip", "/", false],
+    ]);
+
+    // A run under the same generation then finds them current.
+    fixture.ns.mount.contentRegistered(1);
+    assert.equal(await run(fixture), true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(fixture.api.calls.remount.length, 0);
+  });
+
+  it("captures the base list before its first mount", async () => {
+    const fixture = scene();
+
+    await fixture.ns.mount.beforeContentRemount();
+
+    assert.equal(fixture.$.ajaxCalls[0].url, ROOT_LIST);
+  });
+
+  it("mounts nothing without a listing, a zip mount or any mods", async () => {
+    const absent = scene({ cmm: null });
+    assert.equal(await absent.ns.mount.beforeContentRemount(), 1);
+    assert.equal(absent.api.calls.zipMount.length, 0);
+
+    const noZip = scene({ apiOptions: { zipMount: false } });
+    assert.equal(await noZip.ns.mount.beforeContentRemount(), 1);
+
+    const empty = scene({ cmmOptions: { serverMods: [] } });
+    assert.equal(await empty.ns.mount.beforeContentRemount(), 1);
+    assert.equal(empty.api.calls.zipMount.length, 0);
+  });
+
+  it("does not register content for a generation the roots were not mounted under", async () => {
+    const fixture = scene();
+
+    // Registered before any root mount: the run's mounts clear it.
+    fixture.ns.mount.contentRegistered(1);
+    assert.equal(await run(fixture), true);
+
+    assert.equal(fixture.api.calls.remount.length, 1);
+  });
+});
