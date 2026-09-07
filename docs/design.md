@@ -563,3 +563,7 @@ faked; whether the engine behaves as faked is verified by loading the game.
 9. A Galactic War battle with Legion, Bugs and Exiles — Legion's build bar tabs and
    hotkeys, a Bugs research station unlocking a unit, an Exiles extractor firing on its
    own; then the same in a skirmish, where each must still load exactly once.
+10. A solo launch shows one `Applying Unit Spec Tag` per referee teardown, the run after each
+    reads `"root":0` and `"content":0-5` in its `mounted server mods` line, and
+    `coui://pa/units/unit_list.json` holds the merged count before and after; then disable a
+    faction in Community Mods and re-enable it, and the count must drop and come back.
