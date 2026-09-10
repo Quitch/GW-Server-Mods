@@ -180,11 +180,57 @@ content never arrives at the VFS root: the referee cannot read its unit specs an
 renderer has no models. Nothing here can fix that, so it raises `filesystem_server_mod`
 and tells the player to install the mod as a zip instead.
 
-An earlier version of this file claimed such mods needed no mount because the game already
-exposed `server_mods` folders at the root. That was wrong, and instructively so: the
-evidence was `coui://pa/ai_queller/...` resolving for a folder-installed Queller, but the
-base game ships `pa_ex1/ai_queller/`, so the probe was reading stock content at the same
-path. A mod adding a path the base game does not have - `pa/units/l_*` - returns 404.
+Skirmish can use folder mods because the base game has two channels that carry a server
+mod to a local server. Galactic War can use only one of them.
+
+A zip goes through `api.file.zip.mount`. The archive becomes memory files, and a local
+server inherits memory files (`ui/main/shared/js/api/file.js:87-91`). Community Mods uses
+this channel for zip mods only. `mountServerMods` iterates `activeServerZipMods`, which is
+`activeServerMods` without its `fileSystem` entries
+(`ui/main/game/community_mods/community-mods-manager.js:2047-2055`, `:3079-3098`).
+
+A folder goes through an engine upload after the server has started. The engine shows
+`server_mods/` folders in the client VFS at `/server_mods/<dir>/`. That is enough for
+Community Mods to list them and read each `modinfo.json`
+(`community-mods-manager.js:2705-2757`, which tags each one `fileSystem: true`). The engine
+does not overlay the folder's content onto `/pa/`. The upload has three steps:
+
+1. On the redirect to `new_game.html`, the client sends `mod_data_available`
+   (`ui/main/game/connect_to_game/connect_to_game.js:987-1011`).
+2. The skirmish lobby state answers with an auth token
+   (`server-script/states/lobby.js:2188`, handler registered at `:2466`).
+3. The client calls `api.mods.sendModFileDataToServer(token)`. This native call streams
+   the folder over the socket. The server mounts the files and replies
+   `mount_mod_file_data` (`lobby.js:2253`).
+
+Three independent gates close that upload channel to Galactic War. Any one of them is
+enough:
+
+- The client sends `mod_data_available` only on the `new_game.html` redirect, and only
+  when `needsServerModsUpload` is set. Galactic War redirects to `gw_lobby`. The Community
+  Mods wrapper quoted at the top of this document clears `needsServerModsUpload` for every
+  `gw` mode.
+- Only `server-script/states/lobby.js` handles `mod_data_available`.
+  `server-script/states/gw_lobby.js` has no handler for it, so a Galactic War server
+  cannot issue the token even when the client asks.
+- The upload delivers files to the server only. This mod mounts zips at `/` because the
+  client also needs the content. The referee reads unit specs and merges unit lists.
+  `gw_start` reads specs and portraits. `live_game` needs models and icons. An upload
+  channel would satisfy none of those.
+
+The client cannot substitute a mount of its own for the folder. The only partial route is
+to list the folder recursively, fetch each file over `coui://server_mods/<dir>/...`, and
+mount it at `/` with `mountMemoryFiles`. That covers JSON files such as specs and AI data.
+It does not cover binary art, because `mountMemoryFiles` takes string content. A rendered
+faction cannot work that way, so this mod does not attempt it. The upload is not a robust
+channel even where it exists. In skirmish tests it stalled with
+`send() failed, err=10055` and left `connect_to_game` on "UPLOADING SERVER MODS" with no
+timeout.
+
+To probe whether a folder mod's content is visible, use a path that only the mod adds,
+such as `pa/units/l_*`. A path that the base game also ships proves nothing.
+`coui://pa/ai_queller/...` resolves from the stock `pa_ex1/ai_queller/` with or without a
+folder-installed Queller.
 
 The alarm is raised only for folder mods the client has to render, so an AI-only one like
 Queller stays quiet: its content is genuinely server-side and its absence from the root
