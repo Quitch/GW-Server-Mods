@@ -221,7 +221,7 @@ function enginePromise() {
 // code asks for. Every call is kept in `$.ajaxCalls`.
 function createFakeJQuery(options) {
   const opts = options || {};
-  const $ = function () {};
+  const $ = {};
 
   $.Deferred = Deferred;
   $.when = when;

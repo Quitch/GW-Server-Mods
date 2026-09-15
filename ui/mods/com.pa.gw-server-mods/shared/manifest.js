@@ -52,6 +52,10 @@
   var installed = null;
   var loading = null;
 
+  function arrayOrEmpty(mods) {
+    return _.isArray(mods) ? mods : [];
+  }
+
   function readInstalledMods() {
     if (
       typeof ko === "undefined" ||
@@ -65,13 +69,9 @@
       db: { local_name: "installedModsDB", db_name: "installed_mods" },
     });
 
-    function read(mods) {
-      return _.isArray(mods) ? mods : [];
-    }
-
     // The extender rejects `ready` when the record is missing, which is a store
     // with nothing in it rather than a failure.
-    return Promise.resolve(store.ready).then(read, read);
+    return Promise.resolve(store.ready).then(arrayOrEmpty, arrayOrEmpty);
   }
 
   function load() {
@@ -325,6 +325,14 @@
   var SCENES_KEY = "gw_server_mods_scenes";
   var scenesCache = null;
 
+  function readStoredScenes(store) {
+    try {
+      return JSON.parse(store.getItem(SCENES_KEY) || "null");
+    } catch (e) {
+      return null;
+    }
+  }
+
   function unionScenes(mods) {
     var scenes = {};
 
@@ -360,15 +368,9 @@
   // localStorage first, then the sessionStorage a previous build of this mod
   // wrote, so an upgrade mid-session still finds a list.
   function storedScenes() {
-    var read = function (store) {
-      try {
-        return JSON.parse(store.getItem(SCENES_KEY) || "null");
-      } catch (e) {
-        return null;
-      }
-    };
-
-    return read(localStorage) || read(sessionStorage) || {};
+    return (
+      readStoredScenes(localStorage) || readStoredScenes(sessionStorage) || {}
+    );
   }
 
   function scenes(scene) {
