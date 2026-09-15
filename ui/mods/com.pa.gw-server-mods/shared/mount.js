@@ -205,7 +205,7 @@
         vanillaUnits = stored;
       }
     } catch (e) {
-      vanillaUnits = undefined;
+      // An unreadable or malformed record reads as none, so it is captured again.
     }
 
     return vanillaUnits;
