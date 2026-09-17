@@ -432,6 +432,22 @@ before this scene runs. Listing is async and the scene sends its list as soon as
 returns, so `sendIconList` is wrapped rather than raced - the scene's own call triggers
 the enumeration and the list goes out once, complete.
 
+That makes one requirement of a faction mod: **its `icon_si_*.png` files must ship in the
+client half**, at `ui/main/atlas/icon_atlas/img/strategic_icons/`. No server zip is mounted
+when the atlas is built, so icons that exist only in a server zip are never enumerated and
+every unit of that faction keeps the fallback dot. The `icon_atlas` scene script that names
+them may stay in the server half, where skirmish picks it up. Legion and Bugs are built this
+way. Exiles is not - its 126 icons sit in `com.pa.nik.exiles.zip` and its client mod ships
+none ([Exiles-Faction#10](https://github.com/NikolaMX/Exiles-Faction/issues/10)). Reading
+active server zips with `api.file.zip.catalog` in this scene and mounting their icon
+directory before `sendIconList` was the alternative, and was rejected: strategic icons are
+one case of a wider rule, that content only the client uses belongs in the client half. The
+client half is downloaded once while the server half is uploaded and downloaded every
+session, so icons, images, and animations in a server zip cost every game whether or not
+Galactic War is involved. Icons are simply the case where the wrong half is a defect rather
+than only a larger download, and the Exiles issue asks for the whole move, not the icons
+alone.
+
 Two known limits. The atlas is built before any mount exists, so this scene cannot use
 the server mods' own `icon_atlas` scripts the way the battle scenes below use theirs, and
 enumerates the directory instead. And the atlas grows from 132 to 274 names with one
