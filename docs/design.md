@@ -37,16 +37,14 @@ jQuery 2.1.4 decides what is a promise by looking for a `promise` **method** —
 engine promise, which is what every `api.*` call returns, has `then` and no `promise`.
 So `$.when(api.content.remount())` treats the engine promise as a plain value and
 resolves immediately: the wait is skipped with no error, no rejection and no log line.
-That cost this mod a silent 4-second gap between "mounted" and the models actually being
-registered, and in an earlier build it merged the unit list before the zips had mounted,
-losing 243 units. A native promise is invisible to `$.when` for the same reason — it has
-no `promise` method either — so a chain cannot be half migrated.
+A native promise is invisible to `$.when` for the same reason — it has no `promise`
+method either — so a chain cannot mix the two.
 
 Native promises adopt any thenable, engine promises included, so `Promise.resolve` and
 `Promise.all` cannot fail this way. `Promise` is Chrome 32, inside the Chrome 40 limit,
 and `eslint.config.mjs` whitelists it. `Promise.allSettled` is Chrome 76 and is not
 available; `shared/promise.js` supplies `ns.settled`, which neutralises each input first
-so one failure cannot cancel the rest — the behaviour `$.when(...).always()` gave.
+so one failure cannot cancel the rest.
 
 `ns.jq` builds a `$.Deferred` from a thenable. Everything the mod hands out goes through
 it, stock callers and other mods alike:
@@ -84,9 +82,9 @@ scene mod loads:
 Each is taken with an `Object.defineProperty` accessor that re-wraps whatever is
 assigned, rather than reading the value once. `api.content.remount` is taken the same
 way for a different reason - it exists at load time, but the same accessor shape costs
-nothing and survives a reassignment - see "The content catalogue". A repeating timer was tried for the first
-of them and is the wrong tool: it is a race, and it stops defending after a fixed number
-of tries. **Anything a scene sets up during its own boot should be taken this way.**
+nothing and survives a reassignment - see "The content catalogue". A repeating timer would
+be the wrong tool: it is a race, and it stops defending after a fixed number of tries.
+**Anything a scene sets up during its own boot should be taken this way.**
 
 ## Mounting
 
@@ -145,10 +143,10 @@ is mounted onto `pa` before mods are, so only `/pa/...` exists at runtime.
 
 The shadowing faction is itself active, so its list is already in the merge through its own
 `/server_mods/<id>/` read. A read taken at merge time therefore contributes nothing, and any
-base unit that no active faction lists was dropped: Bugs omits four (`radar_jammer`,
-`tank_jammer`, `tank_anti_nuke`, `orbital_mine`), so a Bugs-only war lost them, while
-enabling Legion or Exiles alongside brought them back because those two carry the full base
-list. A list whose effect depends on which _other_ mods are enabled cannot be expressing
+base unit that no active faction lists would be dropped: Bugs omits four (`radar_jammer`,
+`tank_jammer`, `tank_anti_nuke`, `orbital_mine`), so a Bugs-only war would lose them, while
+enabling Legion or Exiles alongside would bring them back because those two carry the full
+base list. A list whose effect depends on which _other_ mods are enabled cannot be expressing
 intent, which is why this is treated as a loss rather than a removal.
 
 `captureVanillaUnits()` runs before the first mount of a run and caches the read in
@@ -163,8 +161,7 @@ memory file at a path never read before was visible through `spec://` at once �
 cache, not mount precedence. The root list is therefore read through `coui://` (with a
 cache-busting query, which `spec://` rejects), and nothing in this mod touches
 `spec://pa/units/unit_list.json` until the merged file is in place; `verify()` probes it only
-afterwards. A first version read it through `spec://` and pinned the unmerged list for the
-referee, which is why this rule exists.
+afterwards. A `spec://` read taken earlier would pin the unmerged list for the referee.
 
 Community Mods generates a merged list of its own in `community-mods-server.zip`, but only
 when every mod's `unitList` had been populated by its asynchronous filesystem scan at the
@@ -269,7 +266,7 @@ reads it in the same panel that wrote it.
 
 A faction can ship its build bar data in the **server** mod. Bugs and Exiles both put their
 build groups and their `SpecIdToGridMap` entries in `shared_build.js`. Legion does not - its copy
-is in the paired client mod, which the game always loads - so Legion hid this for a long time.
+is in the paired client mod, which the game always loads - so Legion alone never shows the problem.
 `SpecIdToGridMap` has no entry for a unit whose script never ran, and `live_game_build_bar.js`
 then puts that unit in a `misc` group that no tab shows. The player sees an empty build bar and
 no error. This mod therefore needs a scene entry for **every** scene a server mod can ship UI in,
@@ -312,7 +309,7 @@ The content catalogue follows the same rule: `api.content.remount()` is recorded
 generation whose root mounts it covered, and a run whose generation is already registered skips
 it. Root mounts recorded by a run that was in flight when a teardown began carry the old
 generation, so the next run mounts again; a batch with a failed mount records nothing and is
-retried. All of this is per page: a new scene starts at "nothing mounted", exactly as before.
+retried. All of this is per page: a new scene starts at "nothing mounted".
 
 ### A faction's art is split across two mods
 
@@ -347,8 +344,8 @@ themselves survive a remount - that was checked directly, before and after.
 
 Community Mods rebuilds it too, inside every teardown: `remountClientMods()` unmounts,
 mounts its client zips and calls `api.content.remount()` - before this mod's run has put
-the root zips back, so that rebuild never covered them and the run had to pay a second
-one, ~4 s each, twice per solo launch and more in co-op. `shared/hooks.js` therefore takes
+the root zips back, so on its own that rebuild would not cover them and the run would have
+to pay a second one, ~4 s each, twice per solo launch and more in co-op. `shared/hooks.js` therefore takes
 `api.content.remount` with an accessor: the wrapper mounts the root zips for the active
 set first (`mount.beforeContentRemount`, the same generation-checked batch a run uses),
 calls the real remount, and records the generation as registered
@@ -357,9 +354,9 @@ current and its content registered, and skips both. This mod's own `remountConte
 also goes through the accessor; the check finds the mounts current and the call is just
 the real remount plus the record. The accessor exists only in the scenes that install the
 hooks - `gw_play`, `connect_to_game`, `live_game`, `gw_lobby` - so `start` and
-`community_mods` are untouched. Wrapping `CommunityModsManager.mountClientMods` or
-`mountZipMods` instead was rejected: both are manager internals rather than the engine seam
-this mod already documents taking, and `mountClientMods` also runs in `start`.
+`community_mods` are untouched. `CommunityModsManager.mountClientMods` and `mountZipMods`
+are not wrapped instead: both are manager internals rather than the engine seam this mod
+already documents taking, and `mountClientMods` also runs in `start`.
 
 Both teardown wrappers call `mount.invalidate()` before the teardown itself runs, so the
 generation has moved before anything is dropped. The nested wrappers on one teardown bump
@@ -403,8 +400,8 @@ Two facts make that safe without a load-order contract in the code:
 
 - `stage()` is a no-op outside a launch, so the scene-entry mount in `gw_play/launch.js`
   and the mounts in `connect_to_game` and `live_game` report nothing. The scene-entry
-  mount no longer performs the content remount, so it has nothing the panel would want
-  to label anyway.
+  mount performs no content remount, so it has nothing the panel would want to label
+  anyway.
 - The object is resolved at call time. GWO carries `priority: 200` and this mod the
   default 100, so GWO loads later and the object does not exist when `mount.js` runs.
 
@@ -437,17 +434,13 @@ client half**, at `ui/main/atlas/icon_atlas/img/strategic_icons/`. No server zip
 when the atlas is built, so icons that exist only in a server zip are never enumerated and
 every unit of that faction keeps the fallback dot. The `icon_atlas` scene script that names
 them may stay in the server half, where skirmish picks it up. Legion, Bugs, and Exiles are
-built this way. Exiles was not until 2026-09-17: its 126 icons sat in `com.pa.nik.exiles.zip`
-and its client mod shipped none, so every Exiles unit showed the fallback dot in Galactic
-War ([Exiles-Faction#10](https://github.com/NikolaMX/Exiles-Faction/issues/10), fixed in
-server 0.8.4 and client 0.8.1). Reading active server zips with `api.file.zip.catalog` in
-this scene and mounting their icon directory before `sendIconList` was the alternative, and
-was rejected: strategic icons are one case of a wider rule, that content only the client
-uses belongs in the client half. The client half is downloaded once while the server half is
-uploaded and downloaded every session, so icons, images, and animations in a server zip cost
-every game whether or not Galactic War is involved. Icons are simply the case where the
-wrong half is a defect rather than only a larger download, and the Exiles issue asked for
-the whole move, not the icons alone.
+built this way. This mod does not read active server zips with `api.file.zip.catalog` in
+this scene and mount their icon directory before `sendIconList`, because strategic icons are
+one case of a wider rule: content only the client uses belongs in the client half. The
+client half is downloaded once while the server half is uploaded and downloaded every
+session, so icons, images, and animations in a server zip cost every game whether or not
+Galactic War is involved. Icons are simply the case where the wrong half is a defect rather
+than only a larger download.
 
 One known limit. The atlas is built before any mount exists, so this scene cannot use
 the server mods' own `icon_atlas` scripts the way the battle scenes below use theirs, and
@@ -480,8 +473,8 @@ is what keeps a skirmish — where the engine did load them — from loading the
 A mount that lists no mods does not touch the persisted list. `connect_to_game` mounts
 as its scene loads, before Community Mods has read its store, and that run sees nothing
 — measured live: `mounted server mods {"ok":true,"count":0}` two seconds before
-`community mods ready`. Written through, it erased the list `gw_play` had persisted and
-every battle scene loaded nothing. Should the list be missing anyway, `serverUi.load`
+`community mods ready`. Written through, it would erase the list `gw_play` persisted and
+every battle scene would load nothing. Should the list be missing anyway, `serverUi.load`
 reads the store itself and loads late, after the scene has bound.
 
 Where it runs: `live_game` (`remount.js`, which also loads the `shared_build` share,
@@ -522,9 +515,9 @@ listing the rendered ones. An unrecognised tree is then treated as client-releva
 is too strict rather than too lax: a guard that wrongly blocks a join is visible, one that
 wrongly allows it produces a battle that fails later.
 
-A units-only rule was considered and rejected. `pa/units/unit_list.json` is a reliable
-marker for a unit mod, because registry files have no append mechanism, but Alien Worlds
-ships 89 CSG models with no units at all and would have been excluded.
+A units-only rule would not do. `pa/units/unit_list.json` is a reliable marker for a unit
+mod, because registry files have no append mechanism, but Alien Worlds ships 89 CSG models
+with no units at all and would be excluded.
 
 Classification needs the mods mounted, so it runs as part of the mount, and the answer is
 persisted in `sessionStorage`. That is not an optimisation: the mount that classifies runs
