@@ -448,11 +448,13 @@ Galactic War is involved. Icons are simply the case where the wrong half is a de
 than only a larger download, and the Exiles issue asks for the whole move, not the icons
 alone.
 
-Two known limits. The atlas is built before any mount exists, so this scene cannot use
+One known limit. The atlas is built before any mount exists, so this scene cannot use
 the server mods' own `icon_atlas` scripts the way the battle scenes below use theirs, and
-enumerates the directory instead. And the atlas grows from 132 to 274 names with one
-faction loaded; PA's atlas texture limit is unknown, and an overflow would show up as
-_other_ icons breaking rather than the modded ones.
+enumerates the directory instead. Atlas capacity is not a concern: the engine packs the
+atlas into a roughly square texture bounded only by the GPU's maximum texture size, which
+is 16k x 16k on current hardware. At 52 x 52 per icon that is a budget of roughly 99,000
+icons (confirmed by the PA developers, 2026-09-20), so the 349 names measured with three
+factions loaded are nowhere near it.
 
 ## Server mod scene scripts
 
