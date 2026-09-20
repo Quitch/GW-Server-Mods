@@ -104,21 +104,14 @@
   // The mount order Community Mods uses: priority descending.
   function fallbackServerMods() {
     return _.sortByOrder(
-      _.filter(installed, function (mod) {
-        return mod.context === "server";
-      }),
+      _.filter(installed, "context", "server"),
       "priority",
       "desc"
     );
   }
 
   function fallbackClientMods() {
-    return _.sortBy(
-      _.filter(installed, function (mod) {
-        return mod.context === "client";
-      }),
-      "priority"
-    );
+    return _.sortBy(_.filter(installed, "context", "client"), "priority");
   }
 
   function describe(mod) {
@@ -129,7 +122,7 @@
       // The gate lower-cases; the game needs the case it was installed under.
       rawIdentifier: (mod && mod.identifier) || identifier,
       displayName:
-        _.isString(mod && mod.display_name) && mod.display_name.length
+        _.isString(_.get(mod, "display_name")) && mod.display_name.length
           ? mod.display_name
           : identifier,
       version: normalizeVersion(mod && mod.version),
@@ -160,9 +153,7 @@
   function serverModInfo(identifier) {
     var wanted = normalizeIdentifier(identifier);
 
-    return _.find(activeServerMods(), function (mod) {
-      return mod.identifier === wanted;
-    });
+    return _.find(activeServerMods(), "identifier", wanted);
   }
 
   // A faction splits its art: models in the server mod, textures in the client
@@ -199,15 +190,13 @@
     // Folder-installed mods are excluded from activeClientZipMods, and a
     // companion is just as likely to be one.
     var paired = _.filter(_.map(clientRecords, describe), function (mod) {
-      return _.contains(wanted, mod.identifier);
+      return _.includes(wanted, mod.identifier);
     });
 
     if (paired.length !== wanted.length) {
       ns.log("companion client mods not all active", {
         wanted: wanted,
-        mounted: _.map(paired, function (mod) {
-          return mod.identifier;
-        }),
+        mounted: _.map(paired, "identifier"),
       });
     }
 
@@ -386,15 +375,11 @@
   }
 
   function identifiers() {
-    return _.map(activeServerMods(), function (mod) {
-      return mod.identifier;
-    });
+    return _.map(activeServerMods(), "identifier");
   }
 
   function rawIdentifiers() {
-    return _.map(activeServerMods(), function (mod) {
-      return mod.rawIdentifier;
-    });
+    return _.map(activeServerMods(), "rawIdentifier");
   }
 
   // jQuery on the way out: a caller's $.when cannot see a native promise any
