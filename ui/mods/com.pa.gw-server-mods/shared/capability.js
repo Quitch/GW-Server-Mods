@@ -50,7 +50,7 @@
   function hostRequiresMod(identifier) {
     var wanted = ns.manifest.normalizeIdentifier(identifier);
 
-    return !!wanted.length && read().identifiers.indexOf(wanted) !== -1;
+    return !!wanted.length && _.includes(read().identifiers, wanted);
   }
 
   function hostServerMods() {

@@ -71,9 +71,7 @@
       _.filter(mods, function (mod) {
         return !mod.fileSystem;
       }),
-      function (mod) {
-        return mod.installedPath;
-      }
+      "installedPath"
     )
       .sort()
       .join("\n");
@@ -92,7 +90,7 @@
     }
 
     return ns.settled(_.map(mods, mountAtRoot)).then(function (results) {
-      var ok = !_.contains(results, false);
+      var ok = !_.includes(results, false);
 
       // Whatever the catalogue covered, it was not these mounts.
       contentRegisteredAt = 0;
@@ -164,7 +162,7 @@
       $.ajax({
         url: url,
         dataType: "text",
-        cache: url.indexOf("coui://") !== 0,
+        cache: !_.startsWith(url, "coui://"),
       })
     ).then(function (data) {
       var parsed = data;
@@ -367,7 +365,7 @@
   }
 
   function probe(path) {
-    var bustable = path.indexOf("coui://") === 0;
+    var bustable = _.startsWith(path, "coui://");
 
     return Promise.resolve(
       $.ajax({ url: path, dataType: "text", cache: !bustable })
@@ -387,9 +385,7 @@
   function reportUnmountableMods() {
     var stranded = _.filter(
       ns.manifest.clientRelevantServerMods(),
-      function (mod) {
-        return mod.fileSystem;
-      }
+      "fileSystem"
     );
 
     _.forEach(stranded, function (mod) {
@@ -411,7 +407,7 @@
     checks.push(probe("spec://pa/units/unit_list.json"));
 
     return ns.settled(checks).then(function (results) {
-      var ok = !_.contains(results, false);
+      var ok = !_.includes(results, false);
 
       if (!ok) {
         ns.alarm("probe_failed", {
