@@ -54,8 +54,8 @@ it, stock callers and other mods alike:
 | `api.file.unmountAllMemoryFiles`         | `gw_play/gw_referee.js:24`, `:202`, `replay_loading.js:158`, Community Mods `states/replay_loading.js:80` |
 | `CommunityModsManager.remountClientMods` | `gw_play.js:202`, `:218`, Community Mods `transit.js:107`, `:130`, `start.js:332`, `gw_referee.js:20`     |
 | `api.net.startGame`                      | `connect_to_game.js:709`                                                                                  |
-| `ns.mount.run`                           | GW-AI-Overhaul `shared/race_mods.js:103`, through `$.when`                                                |
-| `ns.manifest.load`                       | GW-AI-Overhaul `shared/race_mods.js:59`, through `$.when`                                                 |
+| `ns.mount.run`                           | GW-AI-Overhaul `mountRoot` in `shared/race_mods.js`, through `$.when`                                     |
+| `ns.manifest.load`                       | GW-AI-Overhaul `installedRaces` in `shared/race_mods.js`, through `$.when`                                |
 | `ns.manifest.detectClientRelevance`      | nothing outside this mod today; it is on the public namespace and returns a promise                       |
 
 `ns.mount.run` wraps inside `run` rather than at the export, so concurrent callers still
