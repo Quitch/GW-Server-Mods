@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Unreleased
+## v1.3.0 - 2026-10-01
 
 - The Galactic War setup screen is ready about 2 seconds sooner: server mods mount after the screen's other mods have loaded instead of holding them up
 
