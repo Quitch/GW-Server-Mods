@@ -245,8 +245,8 @@ observable is never written and the read is skipped when the key is absent.
 `manifest.load()` performs that read once; with Community Mods present it resolves at
 once, and `activeServerMods()` answers from whichever source is there.
 
-`mount.run({ rootOnly: true, remountContent: false })` is what `gw_start/mount.js` asks
-for: the root mounts, nothing else - the scene reads specs and portraits through `coui:`,
+`mount.run({ rootOnly: true, remountContent: false, afterModuleLoads: true })` is what
+`gw_start/mount.js` asks for: the root mounts, nothing else - the scene reads specs and portraits through `coui:`,
 which the zip mounts alone serve, and the content remount freezes the UI for seconds.
 There is no `/server_mods/` mount because there is no manager to make it and no server to
 read it, no unit-list merge because no referee runs here, and no probe of `mods.json`
@@ -256,6 +256,38 @@ commanders — specs and portraits — before the war is created. A battle mount
 to run without Community Mods, since the `rootOnly` path is the only one the fallback
 listing is fit for: re-mounting the merged unit list under a running battle would replace
 the referee's cooked one.
+
+#### Mounting after the scene's module loads
+
+While a zip mount runs, every `coui:` read blocks. In `gw_start` the 18 root mounts (9 server
+zips and their paired client zips) took about 2.25 s and started during the scene load, so
+other mods' `requireGW` module loads stalled behind them and the setup screen was ready
+seconds late. `afterModuleLoads` therefore holds the mounts until the page's RequireJS loads
+have settled. `manifest.load()` and `captureVanillaUnits()` still start at once; the wait runs
+beside them and shows as the `wait` stage of the `mounted server mods` log line. The root
+generation is read once the wait is over, as the mounts start.
+
+- **Settled** means that no RequireJS context (`requirejs.s.contexts`, read through `window`)
+  has anything in its `defQueue` or an own `registry` entry that is `enabled` and has no
+  `error`. An errored module stays registered for good, so it would otherwise hold the wait
+  until the cap.
+- **Two quiet checks in a row, 50 ms apart.** A `requireGW([...])` call registers only after
+  RequireJS's own `nextTick`, and when a freeze ends the overdue timers run in due-time order,
+  so a single quiet check can come before another mod's registration.
+- **A 10 s cap** (200 checks). The page sets `waitSeconds: 0`, so a load that never lands never
+  expires; at the cap the mounts go ahead and the log names how many loads were pending.
+- **Why a poll.** RequireJS has no settled event: `req.onResourceLoad` is one global slot that
+  other mods may own, and it fires only for `define`s. The rule against timers in "Seams
+  assigned after mod scripts run" is about taking seams, which this is not. The registry does
+  drain without the mounts: in the measured setup (35 client mods) the scene's modules all
+  defined while the mounts were held, so the wait cannot deadlock on its own mounts.
+- With no `requirejs` on the page there is nothing to wait for, and the run mounts at once.
+
+The run in flight is shared as before, so a Galactic War mod that calls
+`mount.run({ rootOnly: true, remountContent: false })` in `gw_start` waits with it, without
+this mod knowing about that mod. The consequence is that `state().mounted` turns true later
+than the scene's own scripts: a mod that reads modded specs in `gw_start` must call `mount.run`
+and wait on what it returns, as GW-AI-Overhaul does, rather than read `state()`.
 
 **`sessionStorage` is per panel, not per process.** Measured in a battle: `live_game` held 50 keys
 including the scene list, and `live_game_build_bar` held one (`dev_mode`) and could not see it.
@@ -615,9 +647,10 @@ faked; whether the engine behaves as faked is verified by loading the game.
    Then set `"galacticWarMod": true` on that mod and repeat: the viewer must be blocked.
 6. Host and viewer on different versions of the same mod — version mismatch.
 7. A second, unrelated server mod, to confirm nothing is specific to one mod.
-8. `gw_start` with a faction server mod enabled — `GwServerMods.mount.state().mounted` is
-   true and `coui:/` resolves one of its commander specs, with no Community Mods on the
-   page.
+8. `gw_start` with a faction server mod enabled — the zip mounts start only after the
+   RequireJS registry empties, the `mounted server mods` line has a `wait` stage, and then
+   `GwServerMods.mount.state().mounted` is true and `coui:/` resolves one of its commander
+   specs, with no Community Mods on the page.
 9. A Galactic War battle with Legion, Bugs and Exiles — Legion's build bar tabs and
    hotkeys, a Bugs research station unlocking a unit, an Exiles extractor firing on its
    own; then the same in a skirmish, where each must still load exactly once.
