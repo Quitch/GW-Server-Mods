@@ -268,13 +268,16 @@ beside them and shows as the `wait` stage of the `mounted server mods` log line.
 generation is read once the wait is over, as the mounts start.
 
 - **Settled** means that no RequireJS context (`requirejs.s.contexts`, read through `window`)
-  has anything in its `defQueue` or an own `registry` entry that is `enabled` and has no
-  `error`. An errored module stays registered for good, so it would otherwise hold the wait
-  until the cap.
+  has anything in its `defQueue` or an own `registry` entry that is `enabled` and has not
+  failed. An errored module stays registered for good, and so does every entry that depends
+  on it, directly or through other entries: RequireJS 2.1.11 calls their errbacks but sets
+  `error` only on the module that failed. An entry whose `depMaps` lead to an errored entry
+  therefore counts as failed too; otherwise one missing file would hold the wait until the
+  cap.
 - **Two quiet checks in a row, 50 ms apart.** A `requireGW([...])` call registers only after
   RequireJS's own `nextTick`, and when a freeze ends the overdue timers run in due-time order,
   so a single quiet check can come before another mod's registration.
-- **A 10 s cap** (200 checks). The page sets `waitSeconds: 0`, so a load that never lands never
+- **A cap of 200 checks**, about 10 s (12.5 s was measured while the scene was busy, since late timers stretch each interval). The page sets `waitSeconds: 0`, so a load that never lands never
   expires; at the cap the mounts go ahead and the log names how many loads were pending.
 - **Why a poll.** RequireJS has no settled event: `req.onResourceLoad` is one global slot that
   other mods may own, and it fires only for `define`s. The rule against timers in "Seams

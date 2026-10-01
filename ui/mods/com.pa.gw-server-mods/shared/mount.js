@@ -529,7 +529,26 @@
   var SETTLE_POLL_MS = 50;
   var SETTLE_MAX_POLLS = 200;
 
-  // Errored modules stay registered for good, so they do not count.
+  // An errored module stays registered for good, and so does everything
+  // waiting on it: RequireJS calls their errbacks but marks only the module
+  // that failed. Neither will ever load, so neither counts.
+  function failed(registry, id, seen) {
+    var entry = _.has(registry, id) ? registry[id] : null;
+
+    if (!entry || seen[id]) {
+      return false;
+    }
+
+    seen[id] = true;
+
+    return (
+      !!entry.error ||
+      _.some(entry.depMaps, function (depMap) {
+        return !!depMap && failed(registry, depMap.id, seen);
+      })
+    );
+  }
+
   function moduleLoadsPending() {
     var pending = 0;
 
@@ -537,8 +556,8 @@
       root.requirejs.s && root.requirejs.s.contexts,
       function (context) {
         pending += _.size(context.defQueue);
-        _.forOwn(context.registry, function (entry) {
-          if (entry && entry.enabled && !entry.error) {
+        _.forOwn(context.registry, function (entry, id) {
+          if (entry && entry.enabled && !failed(context.registry, id, {})) {
             pending += 1;
           }
         });

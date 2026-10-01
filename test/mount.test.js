@@ -1350,6 +1350,42 @@ describe("mount.run afterModuleLoads", () => {
     assert.equal(fixture.api.calls.zipMount.length, 1);
   });
 
+  // RequireJS marks only the module that failed; whatever waits on it, however
+  // indirectly, stays enabled with no error and will never load either.
+  it("ignores modules waiting on one that errored", async () => {
+    const { fixture, timers } = waitingScene({
+      "/mods/broken.js": { enabled: true, error: new Error("load") },
+      _1: { enabled: true, depMaps: [{ id: "/mods/broken.js" }] },
+      _2: { enabled: true, depMaps: [null, { id: "_1" }] },
+    });
+
+    const running = run(fixture, AFTER_LOADS);
+    await flush();
+    timers.tick();
+
+    assert.equal(await running, true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
+  it("still waits on modules that depend on each other", async () => {
+    const { fixture, timers, gw } = waitingScene({
+      "/mods/a.js": { enabled: true, depMaps: [{ id: "/mods/b.js" }] },
+      "/mods/b.js": { enabled: true, depMaps: [{ id: "/mods/a.js" }] },
+    });
+
+    run(fixture, AFTER_LOADS);
+    await flush();
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 0);
+
+    gw.registry = {};
+    timers.tick();
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
   // waitSeconds: 0 means a load that never lands never expires.
   it("mounts anyway at the cap and logs what was pending", async () => {
     const { fixture, timers } = waitingScene({
