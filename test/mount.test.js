@@ -1367,6 +1367,22 @@ describe("mount.run afterModuleLoads", () => {
     assert.equal(fixture.api.calls.zipMount.length, 1);
   });
 
+  // A throw from a require callback or a define factory escapes RequireJS's
+  // check() with the entry still marked as defining and never cleaned up.
+  it("ignores modules whose callback threw, and those waiting on them", async () => {
+    const { fixture, timers } = waitingScene({
+      "/mods/threw.js": { enabled: true, defining: true },
+      _1: { enabled: true, depMaps: [{ id: "/mods/threw.js" }] },
+    });
+
+    const running = run(fixture, AFTER_LOADS);
+    await flush();
+    timers.tick();
+
+    assert.equal(await running, true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
   it("still waits on modules that depend on each other", async () => {
     const { fixture, timers, gw } = waitingScene({
       "/mods/a.js": { enabled: true, depMaps: [{ id: "/mods/b.js" }] },

@@ -271,9 +271,17 @@ generation is read once the wait is over, as the mounts start.
   has anything in its `defQueue` or an own `registry` entry that is `enabled` and has not
   failed. An errored module stays registered for good, and so does every entry that depends
   on it, directly or through other entries: RequireJS 2.1.11 calls their errbacks but sets
-  `error` only on the module that failed. An entry whose `depMaps` lead to an errored entry
-  therefore counts as failed too; otherwise one missing file would hold the wait until the
-  cap.
+  `error` only on the module that failed. The same holds for a `require` callback or
+  `define` factory that threw: with the stock `req.onError` the throw escapes `check()`, so
+  the entry is never cleaned up and stays `defining`, which between two polls nothing else
+  can leave it. An entry that is errored or `defining`, or whose `depMaps` lead to one,
+  therefore counts as failed; otherwise one missing file or one throwing callback would hold
+  the wait until the cap. One case is left to the cap on purpose: a callback that throws
+  while RequireJS is announcing that its dependency has loaded aborts that announcement, so
+  other entries waiting on the same module never hear of it and stay pending with nothing
+  marking them. Measured in `gw_start`, that stranded the stock page's own `require`, which
+  the throw had already broken; telling such an entry apart from a slow load would mean
+  guessing at RequireJS's internal bookkeeping.
 - **Two quiet checks in a row, 50 ms apart.** A `requireGW([...])` call registers only after
   RequireJS's own `nextTick`, and when a freeze ends the overdue timers run in due-time order,
   so a single quiet check can come before another mod's registration.

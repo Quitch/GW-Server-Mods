@@ -531,7 +531,9 @@
 
   // An errored module stays registered for good, and so does everything
   // waiting on it: RequireJS calls their errbacks but marks only the module
-  // that failed. Neither will ever load, so neither counts.
+  // that failed. So does one whose callback or factory threw, which leaves it
+  // `defining` - between polls nothing else can. None of them will ever load,
+  // so none counts.
   function failed(registry, id, seen) {
     var entry = _.has(registry, id) ? registry[id] : null;
 
@@ -543,6 +545,7 @@
 
     return (
       !!entry.error ||
+      !!entry.defining ||
       _.some(entry.depMaps, function (depMap) {
         return !!depMap && failed(registry, depMap.id, seen);
       })
