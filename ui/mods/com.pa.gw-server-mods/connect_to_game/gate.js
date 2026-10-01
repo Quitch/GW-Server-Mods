@@ -34,7 +34,7 @@
     var versions = _.assign({}, payload.required_versions_by_id);
 
     _.forEach(mods, function (mod) {
-      if (identifiers.indexOf(mod.identifier) === -1) {
+      if (!_.includes(identifiers, mod.identifier)) {
         identifiers.push(mod.identifier);
       }
 
@@ -49,9 +49,7 @@
     ns.capability.remember(identifiers, names, versions);
 
     ns.log("published host server mods", {
-      identifiers: _.map(mods, function (mod) {
-        return mod.identifier;
-      }),
+      identifiers: _.map(mods, "identifier"),
     });
 
     return payload;
@@ -60,7 +58,7 @@
   // galacticWarMod keeps its stock meaning and is always reported; anything
   // else the host is not running is left out. See design.md.
   function sharedWithHost(mod) {
-    return mod.galacticWarMod || hostRequired.indexOf(mod.identifier) !== -1;
+    return mod.galacticWarMod || _.includes(hostRequired, mod.identifier);
   }
 
   function addViewerServerMods(payload) {
@@ -80,11 +78,11 @@
       : [];
 
     _.forEach(mods, function (mod) {
-      if (identifiers.indexOf(mod.identifier) === -1) {
+      if (!_.includes(identifiers, mod.identifier)) {
         identifiers.push(mod.identifier);
       }
 
-      if (active.indexOf(mod.identifier) === -1) {
+      if (!_.includes(active, mod.identifier)) {
         active.push(mod.identifier);
       }
 

@@ -4,7 +4,11 @@
    skipped. Community Mods is absent here; see design.md. */
 (function () {
   try {
-    window.GwServerMods.mount.run({ rootOnly: true, remountContent: false });
+    window.GwServerMods.mount.run({
+      rootOnly: true,
+      remountContent: false,
+      afterModuleLoads: true,
+    });
   } catch (e) {
     console.error("[GW-SM] " + ((e && (e.stack || e.message)) || e));
   }

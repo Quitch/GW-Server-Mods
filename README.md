@@ -48,6 +48,18 @@ See [docs/design.md](docs/design.md).
 - Planetary Annihilation: TITANS
 - Community Mods
 
+### For faction mod authors
+
+Ship your strategic icons (`icon_si_*.png`) in your **client** mod, at
+`ui/main/atlas/icon_atlas/img/strategic_icons/`. The game builds its icon atlas at startup,
+before any server mod is mounted, so icons that exist only in a server mod never reach
+Galactic War and your units show a plain dot. See "Strategic icons" in
+[docs/design.md](docs/design.md).
+
+This is one case of a wider rule: content that only the client uses (icons, images,
+animations) belongs in the client mod. Players download the client mod once, while the
+server mod is uploaded and downloaded again every session.
+
 ## Credits
 
 **kikta** wrote the original proof of concept this mod grew out of

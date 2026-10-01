@@ -16,7 +16,7 @@
     ];
 
     return _.some(lists, function (list) {
-      return _.isArray(list) && _.contains(list, url);
+      return _.isArray(list) && _.includes(list, url);
     });
   }
 
@@ -25,7 +25,7 @@
       return (
         _.isString(url) &&
         url.length &&
-        !_.contains(loaded, url) &&
+        !_.includes(loaded, url) &&
         !alreadyListed(scene, url)
       );
     });

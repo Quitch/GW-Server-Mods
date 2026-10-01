@@ -37,28 +37,26 @@ jQuery 2.1.4 decides what is a promise by looking for a `promise` **method** —
 engine promise, which is what every `api.*` call returns, has `then` and no `promise`.
 So `$.when(api.content.remount())` treats the engine promise as a plain value and
 resolves immediately: the wait is skipped with no error, no rejection and no log line.
-That cost this mod a silent 4-second gap between "mounted" and the models actually being
-registered, and in an earlier build it merged the unit list before the zips had mounted,
-losing 243 units. A native promise is invisible to `$.when` for the same reason — it has
-no `promise` method either — so a chain cannot be half migrated.
+A native promise is invisible to `$.when` for the same reason — it has no `promise`
+method either — so a chain cannot mix the two.
 
 Native promises adopt any thenable, engine promises included, so `Promise.resolve` and
 `Promise.all` cannot fail this way. `Promise` is Chrome 32, inside the Chrome 40 limit,
 and `eslint.config.mjs` whitelists it. `Promise.allSettled` is Chrome 76 and is not
 available; `shared/promise.js` supplies `ns.settled`, which neutralises each input first
-so one failure cannot cancel the rest — the behaviour `$.when(...).always()` gave.
+so one failure cannot cancel the rest.
 
 `ns.jq` builds a `$.Deferred` from a thenable. Everything the mod hands out goes through
 it, stock callers and other mods alike:
 
-| What is handed out                       | Who reads it                                                                                              |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `api.file.unmountAllMemoryFiles`         | `gw_play/gw_referee.js:24`, `:202`, `replay_loading.js:158`, Community Mods `states/replay_loading.js:80` |
-| `CommunityModsManager.remountClientMods` | `gw_play.js:202`, `:218`, Community Mods `transit.js:107`, `:130`, `start.js:332`, `gw_referee.js:20`     |
-| `api.net.startGame`                      | `connect_to_game.js:709`                                                                                  |
-| `ns.mount.run`                           | GW-AI-Overhaul `shared/race_mods.js:103`, through `$.when`                                                |
-| `ns.manifest.load`                       | GW-AI-Overhaul `shared/race_mods.js:59`, through `$.when`                                                 |
-| `ns.manifest.detectClientRelevance`      | nothing outside this mod today; it is on the public namespace and returns a promise                       |
+| What is handed out                       | Who reads it                                                                                                                                                                |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api.file.unmountAllMemoryFiles`         | `gw_play/gw_referee.js:24`, `:202`, `replay_loading.js:158`, Community Mods `states/replay_loading.js:80`                                                                   |
+| `CommunityModsManager.remountClientMods` | `gw_play.js:202`, `:218`, Community Mods `transit.js:107`, `:130`, `start.js:332`, `gw_referee.js:20`                                                                       |
+| `api.net.startGame`                      | `connect_to_game.js:709`                                                                                                                                                    |
+| `ns.mount.run`                           | GW-AI-Overhaul `mountRoot` in `shared/race_mods.js`, through `$.when`                                                                                                       |
+| `ns.manifest.load`                       | GW-AI-Overhaul `installedRaces` in `shared/race_mods.js`, and `enabledServerZipMods`, `serve`, and `installedBiomeMods` in `shared/gwo_biome_mods.js`, all through `$.when` |
+| `ns.manifest.detectClientRelevance`      | nothing outside this mod today; it is on the public namespace and returns a promise                                                                                         |
 
 `ns.mount.run` wraps inside `run` rather than at the export, so concurrent callers still
 share one object. The native chain underneath is what `shared/hooks.js` and
@@ -84,9 +82,9 @@ scene mod loads:
 Each is taken with an `Object.defineProperty` accessor that re-wraps whatever is
 assigned, rather than reading the value once. `api.content.remount` is taken the same
 way for a different reason - it exists at load time, but the same accessor shape costs
-nothing and survives a reassignment - see "The content catalogue". A repeating timer was tried for the first
-of them and is the wrong tool: it is a race, and it stops defending after a fixed number
-of tries. **Anything a scene sets up during its own boot should be taken this way.**
+nothing and survives a reassignment - see "The content catalogue". A repeating timer would
+be the wrong tool: it is a race, and it stops defending after a fixed number of tries.
+**Anything a scene sets up during its own boot should be taken this way.**
 
 ## Mounting
 
@@ -145,10 +143,10 @@ is mounted onto `pa` before mods are, so only `/pa/...` exists at runtime.
 
 The shadowing faction is itself active, so its list is already in the merge through its own
 `/server_mods/<id>/` read. A read taken at merge time therefore contributes nothing, and any
-base unit that no active faction lists was dropped: Bugs omits four (`radar_jammer`,
-`tank_jammer`, `tank_anti_nuke`, `orbital_mine`), so a Bugs-only war lost them, while
-enabling Legion or Exiles alongside brought them back because those two carry the full base
-list. A list whose effect depends on which _other_ mods are enabled cannot be expressing
+base unit that no active faction lists would be dropped: Bugs omits four (`radar_jammer`,
+`tank_jammer`, `tank_anti_nuke`, `orbital_mine`), so a Bugs-only war would lose them, while
+enabling Legion or Exiles alongside would bring them back because those two carry the full
+base list. A list whose effect depends on which _other_ mods are enabled cannot be expressing
 intent, which is why this is treated as a loss rather than a removal.
 
 `captureVanillaUnits()` runs before the first mount of a run and caches the read in
@@ -163,8 +161,7 @@ memory file at a path never read before was visible through `spec://` at once �
 cache, not mount precedence. The root list is therefore read through `coui://` (with a
 cache-busting query, which `spec://` rejects), and nothing in this mod touches
 `spec://pa/units/unit_list.json` until the merged file is in place; `verify()` probes it only
-afterwards. A first version read it through `spec://` and pinned the unmerged list for the
-referee, which is why this rule exists.
+afterwards. A `spec://` read taken earlier would pin the unmerged list for the referee.
 
 Community Mods generates a merged list of its own in `community-mods-server.zip`, but only
 when every mod's `unitList` had been populated by its asynchronous filesystem scan at the
@@ -180,11 +177,57 @@ content never arrives at the VFS root: the referee cannot read its unit specs an
 renderer has no models. Nothing here can fix that, so it raises `filesystem_server_mod`
 and tells the player to install the mod as a zip instead.
 
-An earlier version of this file claimed such mods needed no mount because the game already
-exposed `server_mods` folders at the root. That was wrong, and instructively so: the
-evidence was `coui://pa/ai_queller/...` resolving for a folder-installed Queller, but the
-base game ships `pa_ex1/ai_queller/`, so the probe was reading stock content at the same
-path. A mod adding a path the base game does not have - `pa/units/l_*` - returns 404.
+Skirmish can use folder mods because the base game has two channels that carry a server
+mod to a local server. Galactic War can use only one of them.
+
+A zip goes through `api.file.zip.mount`. The archive becomes memory files, and a local
+server inherits memory files (`ui/main/shared/js/api/file.js:87-91`). Community Mods uses
+this channel for zip mods only. `mountServerMods` iterates `activeServerZipMods`, which is
+`activeServerMods` without its `fileSystem` entries
+(`ui/main/game/community_mods/community-mods-manager.js:2047-2055`, `:3079-3098`).
+
+A folder goes through an engine upload after the server has started. The engine shows
+`server_mods/` folders in the client VFS at `/server_mods/<dir>/`. That is enough for
+Community Mods to list them and read each `modinfo.json`
+(`community-mods-manager.js:2705-2757`, which tags each one `fileSystem: true`). The engine
+does not overlay the folder's content onto `/pa/`. The upload has three steps:
+
+1. On the redirect to `new_game.html`, the client sends `mod_data_available`
+   (`ui/main/game/connect_to_game/connect_to_game.js:987-1011`).
+2. The skirmish lobby state answers with an auth token
+   (`server-script/states/lobby.js:2188`, handler registered at `:2466`).
+3. The client calls `api.mods.sendModFileDataToServer(token)`. This native call streams
+   the folder over the socket. The server mounts the files and replies
+   `mount_mod_file_data` (`lobby.js:2253`).
+
+Three independent gates close that upload channel to Galactic War. Any one of them is
+enough:
+
+- The client sends `mod_data_available` only on the `new_game.html` redirect, and only
+  when `needsServerModsUpload` is set. Galactic War redirects to `gw_lobby`. The Community
+  Mods wrapper quoted at the top of this document clears `needsServerModsUpload` for every
+  `gw` mode.
+- Only `server-script/states/lobby.js` handles `mod_data_available`.
+  `server-script/states/gw_lobby.js` has no handler for it, so a Galactic War server
+  cannot issue the token even when the client asks.
+- The upload delivers files to the server only. This mod mounts zips at `/` because the
+  client also needs the content. The referee reads unit specs and merges unit lists.
+  `gw_start` reads specs and portraits. `live_game` needs models and icons. An upload
+  channel would satisfy none of those.
+
+The client cannot substitute a mount of its own for the folder. The only partial route is
+to list the folder recursively, fetch each file over `coui://server_mods/<dir>/...`, and
+mount it at `/` with `mountMemoryFiles`. That covers JSON files such as specs and AI data.
+It does not cover binary art, because `mountMemoryFiles` takes string content. A rendered
+faction cannot work that way, so this mod does not attempt it. The upload is not a robust
+channel even where it exists. In skirmish tests it stalled with
+`send() failed, err=10055` and left `connect_to_game` on "UPLOADING SERVER MODS" with no
+timeout.
+
+To probe whether a folder mod's content is visible, use a path that only the mod adds,
+such as `pa/units/l_*`. A path that the base game also ships proves nothing.
+`coui://pa/ai_queller/...` resolves from the stock `pa_ex1/ai_queller/` with or without a
+folder-installed Queller.
 
 The alarm is raised only for folder mods the client has to render, so an AI-only one like
 Queller stays quiet: its content is genuinely server-side and its absence from the root
@@ -202,8 +245,8 @@ observable is never written and the read is skipped when the key is absent.
 `manifest.load()` performs that read once; with Community Mods present it resolves at
 once, and `activeServerMods()` answers from whichever source is there.
 
-`mount.run({ rootOnly: true, remountContent: false })` is what `gw_start/mount.js` asks
-for: the root mounts, nothing else - the scene reads specs and portraits through `coui:`,
+`mount.run({ rootOnly: true, remountContent: false, afterModuleLoads: true })` is what
+`gw_start/mount.js` asks for: the root mounts, nothing else - the scene reads specs and portraits through `coui:`,
 which the zip mounts alone serve, and the content remount freezes the UI for seconds.
 There is no `/server_mods/` mount because there is no manager to make it and no server to
 read it, no unit-list merge because no referee runs here, and no probe of `mods.json`
@@ -214,6 +257,49 @@ to run without Community Mods, since the `rootOnly` path is the only one the fal
 listing is fit for: re-mounting the merged unit list under a running battle would replace
 the referee's cooked one.
 
+#### Mounting after the scene's module loads
+
+While a zip mount runs, every `coui:` read blocks. In `gw_start` the 18 root mounts (9 server
+zips and their paired client zips) took about 2.25 s and started during the scene load, so
+other mods' `requireGW` module loads stalled behind them and the setup screen was ready
+seconds late. `afterModuleLoads` therefore holds the mounts until the page's RequireJS loads
+have settled. `manifest.load()` and `captureVanillaUnits()` still start at once; the wait runs
+beside them and shows as the `wait` stage of the `mounted server mods` log line. The root
+generation is read once the wait is over, as the mounts start.
+
+- **Settled** means that no RequireJS context (`requirejs.s.contexts`, read through `window`)
+  has anything in its `defQueue` or an own `registry` entry that is `enabled` and has not
+  failed. An errored module stays registered for good, and so does every entry that depends
+  on it, directly or through other entries: RequireJS 2.1.11 calls their errbacks but sets
+  `error` only on the module that failed. The same holds for a `require` callback or
+  `define` factory that threw: with the stock `req.onError` the throw escapes `check()`, so
+  the entry is never cleaned up and stays `defining`, which between two polls nothing else
+  can leave it. An entry that is errored or `defining`, or whose `depMaps` lead to one,
+  therefore counts as failed; otherwise one missing file or one throwing callback would hold
+  the wait until the cap. One case is left to the cap on purpose: a callback that throws
+  while RequireJS is announcing that its dependency has loaded aborts that announcement, so
+  other entries waiting on the same module never hear of it and stay pending with nothing
+  marking them. Measured in `gw_start`, that stranded the stock page's own `require`, which
+  the throw had already broken; telling such an entry apart from a slow load would mean
+  guessing at RequireJS's internal bookkeeping.
+- **Two quiet checks in a row, 50 ms apart.** A `requireGW([...])` call registers only after
+  RequireJS's own `nextTick`, and when a freeze ends the overdue timers run in due-time order,
+  so a single quiet check can come before another mod's registration.
+- **A cap of 200 checks**, about 10 s (12.5 s was measured while the scene was busy, since late timers stretch each interval). The page sets `waitSeconds: 0`, so a load that never lands never
+  expires; at the cap the mounts go ahead and the log names how many loads were pending.
+- **Why a poll.** RequireJS has no settled event: `req.onResourceLoad` is one global slot that
+  other mods may own, and it fires only for `define`s. The rule against timers in "Seams
+  assigned after mod scripts run" is about taking seams, which this is not. The registry does
+  drain without the mounts: in the measured setup (35 client mods) the scene's modules all
+  defined while the mounts were held, so the wait cannot deadlock on its own mounts.
+- With no `requirejs` on the page there is nothing to wait for, and the run mounts at once.
+
+The run in flight is shared as before, so a Galactic War mod that calls
+`mount.run({ rootOnly: true, remountContent: false })` in `gw_start` waits with it, without
+this mod knowing about that mod. The consequence is that `state().mounted` turns true later
+than the scene's own scripts: a mod that reads modded specs in `gw_start` must call `mount.run`
+and wait on what it returns, as GW-AI-Overhaul does, rather than read `state()`.
+
 **`sessionStorage` is per panel, not per process.** Measured in a battle: `live_game` held 50 keys
 including the scene list, and `live_game_build_bar` held one (`dev_mode`) and could not see it.
 `localStorage` is shared - a value written in `live_game` reads back in `live_game_build_bar`. The
@@ -223,7 +309,7 @@ reads it in the same panel that wrote it.
 
 A faction can ship its build bar data in the **server** mod. Bugs and Exiles both put their
 build groups and their `SpecIdToGridMap` entries in `shared_build.js`. Legion does not - its copy
-is in the paired client mod, which the game always loads - so Legion hid this for a long time.
+is in the paired client mod, which the game always loads - so Legion alone never shows the problem.
 `SpecIdToGridMap` has no entry for a unit whose script never ran, and `live_game_build_bar.js`
 then puts that unit in a `misc` group that no tab shows. The player sees an empty build bar and
 no error. This mod therefore needs a scene entry for **every** scene a server mod can ship UI in,
@@ -266,7 +352,7 @@ The content catalogue follows the same rule: `api.content.remount()` is recorded
 generation whose root mounts it covered, and a run whose generation is already registered skips
 it. Root mounts recorded by a run that was in flight when a teardown began carry the old
 generation, so the next run mounts again; a batch with a failed mount records nothing and is
-retried. All of this is per page: a new scene starts at "nothing mounted", exactly as before.
+retried. All of this is per page: a new scene starts at "nothing mounted".
 
 ### A faction's art is split across two mods
 
@@ -301,8 +387,8 @@ themselves survive a remount - that was checked directly, before and after.
 
 Community Mods rebuilds it too, inside every teardown: `remountClientMods()` unmounts,
 mounts its client zips and calls `api.content.remount()` - before this mod's run has put
-the root zips back, so that rebuild never covered them and the run had to pay a second
-one, ~4 s each, twice per solo launch and more in co-op. `shared/hooks.js` therefore takes
+the root zips back, so on its own that rebuild would not cover them and the run would have
+to pay a second one, ~4 s each, twice per solo launch and more in co-op. `shared/hooks.js` therefore takes
 `api.content.remount` with an accessor: the wrapper mounts the root zips for the active
 set first (`mount.beforeContentRemount`, the same generation-checked batch a run uses),
 calls the real remount, and records the generation as registered
@@ -311,9 +397,9 @@ current and its content registered, and skips both. This mod's own `remountConte
 also goes through the accessor; the check finds the mounts current and the call is just
 the real remount plus the record. The accessor exists only in the scenes that install the
 hooks - `gw_play`, `connect_to_game`, `live_game`, `gw_lobby` - so `start` and
-`community_mods` are untouched. Wrapping `CommunityModsManager.mountClientMods` or
-`mountZipMods` instead was rejected: both are manager internals rather than the engine seam
-this mod already documents taking, and `mountClientMods` also runs in `start`.
+`community_mods` are untouched. `CommunityModsManager.mountClientMods` and `mountZipMods`
+are not wrapped instead: both are manager internals rather than the engine seam this mod
+already documents taking, and `mountClientMods` also runs in `start`.
 
 Both teardown wrappers call `mount.invalidate()` before the teardown itself runs, so the
 generation has moved before anything is dropped. The nested wrappers on one teardown bump
@@ -357,8 +443,8 @@ Two facts make that safe without a load-order contract in the code:
 
 - `stage()` is a no-op outside a launch, so the scene-entry mount in `gw_play/launch.js`
   and the mounts in `connect_to_game` and `live_game` report nothing. The scene-entry
-  mount no longer performs the content remount, so it has nothing the panel would want
-  to label anyway.
+  mount performs no content remount, so it has nothing the panel would want to label
+  anyway.
 - The object is resolved at call time. GWO carries `priority: 200` and this mod the
   default 100, so GWO loads later and the object does not exist when `mount.js` runs.
 
@@ -386,11 +472,26 @@ before this scene runs. Listing is async and the scene sends its list as soon as
 returns, so `sendIconList` is wrapped rather than raced - the scene's own call triggers
 the enumeration and the list goes out once, complete.
 
-Two known limits. The atlas is built before any mount exists, so this scene cannot use
+That makes one requirement of a faction mod: **its `icon_si_*.png` files must ship in the
+client half**, at `ui/main/atlas/icon_atlas/img/strategic_icons/`. No server zip is mounted
+when the atlas is built, so icons that exist only in a server zip are never enumerated and
+every unit of that faction keeps the fallback dot. The `icon_atlas` scene script that names
+them may stay in the server half, where skirmish picks it up. Legion, Bugs, and Exiles are
+built this way. This mod does not read active server zips with `api.file.zip.catalog` in
+this scene and mount their icon directory before `sendIconList`, because strategic icons are
+one case of a wider rule: content only the client uses belongs in the client half. The
+client half is downloaded once while the server half is uploaded and downloaded every
+session, so icons, images, and animations in a server zip cost every game whether or not
+Galactic War is involved. Icons are simply the case where the wrong half is a defect rather
+than only a larger download.
+
+One known limit. The atlas is built before any mount exists, so this scene cannot use
 the server mods' own `icon_atlas` scripts the way the battle scenes below use theirs, and
-enumerates the directory instead. And the atlas grows from 132 to 274 names with one
-faction loaded; PA's atlas texture limit is unknown, and an overflow would show up as
-_other_ icons breaking rather than the modded ones.
+enumerates the directory instead. Atlas capacity is not a concern: the engine packs the
+atlas into a roughly square texture bounded only by the GPU's maximum texture size, which
+is 16k x 16k on current hardware. At 52 x 52 per icon that is a budget of roughly 99,000
+icons (confirmed by the PA developers, 2026-09-20), so the 349 names measured with three
+factions loaded are nowhere near it.
 
 ## Server mod scene scripts
 
@@ -415,8 +516,8 @@ is what keeps a skirmish — where the engine did load them — from loading the
 A mount that lists no mods does not touch the persisted list. `connect_to_game` mounts
 as its scene loads, before Community Mods has read its store, and that run sees nothing
 — measured live: `mounted server mods {"ok":true,"count":0}` two seconds before
-`community mods ready`. Written through, it erased the list `gw_play` had persisted and
-every battle scene loaded nothing. Should the list be missing anyway, `serverUi.load`
+`community mods ready`. Written through, it would erase the list `gw_play` persisted and
+every battle scene would load nothing. Should the list be missing anyway, `serverUi.load`
 reads the store itself and loads late, after the scene has bound.
 
 Where it runs: `live_game` (`remount.js`, which also loads the `shared_build` share,
@@ -457,9 +558,9 @@ listing the rendered ones. An unrecognised tree is then treated as client-releva
 is too strict rather than too lax: a guard that wrongly blocks a join is visible, one that
 wrongly allows it produces a battle that fails later.
 
-A units-only rule was considered and rejected. `pa/units/unit_list.json` is a reliable
-marker for a unit mod, because registry files have no append mechanism, but Alien Worlds
-ships 89 CSG models with no units at all and would have been excluded.
+A units-only rule would not do. `pa/units/unit_list.json` is a reliable marker for a unit
+mod, because registry files have no append mechanism, but Alien Worlds ships 89 CSG models
+with no units at all and would be excluded.
 
 Classification needs the mods mounted, so it runs as part of the mount, and the answer is
 persisted in `sessionStorage`. That is not an optimisation: the mount that classifies runs
@@ -557,9 +658,10 @@ faked; whether the engine behaves as faked is verified by loading the game.
    Then set `"galacticWarMod": true` on that mod and repeat: the viewer must be blocked.
 6. Host and viewer on different versions of the same mod — version mismatch.
 7. A second, unrelated server mod, to confirm nothing is specific to one mod.
-8. `gw_start` with a faction server mod enabled — `GwServerMods.mount.state().mounted` is
-   true and `coui:/` resolves one of its commander specs, with no Community Mods on the
-   page.
+8. `gw_start` with a faction server mod enabled — the zip mounts start only after the
+   RequireJS registry empties, the `mounted server mods` line has a `wait` stage, and then
+   `GwServerMods.mount.state().mounted` is true and `coui:/` resolves one of its commander
+   specs, with no Community Mods on the page.
 9. A Galactic War battle with Legion, Bugs and Exiles — Legion's build bar tabs and
    hotkeys, a Bugs research station unlocking a unit, an Exiles extractor firing on its
    own; then the same in a skirmish, where each must still load exactly once.

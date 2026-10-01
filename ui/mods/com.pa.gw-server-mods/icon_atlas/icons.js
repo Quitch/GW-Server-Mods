@@ -23,7 +23,7 @@
         var added = [];
 
         _.forEach(files, function (file) {
-          if (String(file).indexOf("icon_si_") === -1) {
+          if (!_.includes(String(file), "icon_si_")) {
             return;
           }
 
@@ -31,8 +31,8 @@
 
           if (
             name.length &&
-            known.indexOf(name) === -1 &&
-            added.indexOf(name) === -1
+            !_.includes(known, name) &&
+            !_.includes(added, name)
           ) {
             added.push(name);
           }

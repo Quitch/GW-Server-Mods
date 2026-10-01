@@ -27,7 +27,7 @@
 
     var applied = model.gameModIdentifiers() || [];
     var lost = _.filter(expected, function (identifier) {
-      return applied.indexOf(identifier) === -1;
+      return !_.includes(applied, identifier);
     });
 
     if (lost.length) {

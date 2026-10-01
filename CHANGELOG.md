@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v1.3.0 - 2026-10-01
+
+- The Galactic War setup screen is ready about 2 seconds sooner: server mods mount after the screen's other mods have loaded instead of holding them up
+
 ## v1.2.0 - 2026-09-07
 
 - Galactic War battles launch faster: server mod content is registered once per teardown, inside Community Mods' own rebuild, instead of a second time afterwards - about 10 seconds less per solo launch and 15 in co-op, with the same units and textures

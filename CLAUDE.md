@@ -38,6 +38,9 @@ literals or `class`. A parse error takes out the whole script, not the line.
 `eslint.config.mjs` is the whitelist and is exhaustive — no entry means no. lodash is
 3.9.3, so v4 names are absent.
 
+The `eslint-plugin-lodash` `v3` rules apply to shipped code only, because `_` is a PA runtime global the Node tooling does not have. Every non-`prefer-*` rule is on. Of the `prefer-*` rules only `prefer-get`, `prefer-includes`, and `prefer-startswith` are kept, since there the lodash method stands in for a post-ES5 feature Chrome 40 lacks; the other fourteen are off as style preferences over ES5 equivalents. ESLint is held at **9.x**: `eslint-plugin-lodash` calls `context.getSourceCode`, which ESLint 10 removed. `eslint-plugin-es-x` is held at 9.x for the same reason (its 10.x needs ESLint >= 10.6). Dependabot ignores major bumps of `eslint`, `@eslint/js`, and
+`eslint-plugin-es-x` for that reason.
+
 ## Comments
 
 The code carries comments only where the code itself cannot explain something: base-game

@@ -1232,3 +1232,241 @@ describe("the content accessor halves", () => {
     assert.equal(fixture.api.calls.remount.length, 1);
   });
 });
+
+// A zip mount blocks every coui: read, so gw_start mounts only once the page's
+// RequireJS loads have settled: two quiet checks in a row, or the cap.
+describe("mount.run afterModuleLoads", () => {
+  const AFTER_LOADS = {
+    rootOnly: true,
+    remountContent: false,
+    afterModuleLoads: true,
+  };
+
+  function manualTimers() {
+    const queue = [];
+    return {
+      setTimeout: (fn) => queue.push(fn),
+      pending: () => queue.length,
+      tick: () => queue.shift()(),
+    };
+  }
+
+  function fakeRequirejs(registry) {
+    return {
+      s: {
+        contexts: {
+          _: { registry: {}, defQueue: [] },
+          gw: { registry: registry, defQueue: [] },
+        },
+      },
+    };
+  }
+
+  function waitingScene(registry) {
+    const timers = manualTimers();
+    const requirejs = fakeRequirejs(registry);
+    const fixture = scene({
+      stubs: { requirejs: requirejs, setTimeout: timers.setTimeout },
+    });
+    return { fixture, timers, gw: requirejs.s.contexts.gw };
+  }
+
+  it("mounts only after the registry empties and stays quiet twice", async () => {
+    const { fixture, timers, gw } = waitingScene({
+      "/mods/a.js": { enabled: true },
+    });
+
+    const running = run(fixture, AFTER_LOADS);
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 0);
+
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 0);
+
+    delete gw.registry["/mods/a.js"];
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 0);
+
+    timers.tick();
+    assert.equal(await running, true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(timers.pending(), 0);
+    const line = fixture.console.lines.log.find((text) =>
+      text.includes("mounted server mods")
+    );
+    assert.match(line, /"wait":\d+/);
+  });
+
+  it("counts a queued define as a load in progress", async () => {
+    const { fixture, timers, gw } = waitingScene({});
+    gw.defQueue.push(["/mods/b.js", [], () => ({})]);
+
+    run(fixture, AFTER_LOADS);
+    await flush();
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 0);
+
+    gw.defQueue.length = 0;
+    timers.tick();
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
+  it("starts the quiet count again when a module registers in between", async () => {
+    const { fixture, timers, gw } = waitingScene({});
+
+    run(fixture, AFTER_LOADS);
+    await flush();
+    gw.registry["/mods/late.js"] = { enabled: true };
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 0);
+
+    delete gw.registry["/mods/late.js"];
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 0);
+
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
+  it("ignores modules that errored or were never enabled", async () => {
+    const { fixture, timers } = waitingScene({
+      "/mods/broken.js": { enabled: true, error: new Error("load") },
+      "/mods/idle.js": { enabled: false },
+    });
+
+    const running = run(fixture, AFTER_LOADS);
+    await flush();
+    timers.tick();
+
+    assert.equal(await running, true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
+  // RequireJS marks only the module that failed; whatever waits on it, however
+  // indirectly, stays enabled with no error and will never load either.
+  it("ignores modules waiting on one that errored", async () => {
+    const { fixture, timers } = waitingScene({
+      "/mods/broken.js": { enabled: true, error: new Error("load") },
+      _1: { enabled: true, depMaps: [{ id: "/mods/broken.js" }] },
+      _2: { enabled: true, depMaps: [null, { id: "_1" }] },
+    });
+
+    const running = run(fixture, AFTER_LOADS);
+    await flush();
+    timers.tick();
+
+    assert.equal(await running, true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
+  // A throw from a require callback or a define factory escapes RequireJS's
+  // check() with the entry still marked as defining and never cleaned up.
+  it("ignores modules whose callback threw, and those waiting on them", async () => {
+    const { fixture, timers } = waitingScene({
+      "/mods/threw.js": { enabled: true, defining: true },
+      _1: { enabled: true, depMaps: [{ id: "/mods/threw.js" }] },
+    });
+
+    const running = run(fixture, AFTER_LOADS);
+    await flush();
+    timers.tick();
+
+    assert.equal(await running, true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
+  it("still waits on modules that depend on each other", async () => {
+    const { fixture, timers, gw } = waitingScene({
+      "/mods/a.js": { enabled: true, depMaps: [{ id: "/mods/b.js" }] },
+      "/mods/b.js": { enabled: true, depMaps: [{ id: "/mods/a.js" }] },
+    });
+
+    run(fixture, AFTER_LOADS);
+    await flush();
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 0);
+
+    gw.registry = {};
+    timers.tick();
+    timers.tick();
+    await flush();
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+  });
+
+  // waitSeconds: 0 means a load that never lands never expires.
+  it("mounts anyway at the cap and logs what was pending", async () => {
+    const { fixture, timers } = waitingScene({
+      "/mods/never.js": { enabled: true },
+    });
+
+    const running = run(fixture, AFTER_LOADS);
+    await flush();
+    for (let poll = 1; poll < 200; poll++) {
+      timers.tick();
+    }
+
+    assert.equal(await running, true);
+    assert.equal(timers.pending(), 0);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.ok(
+      fixture.console.lines.log.includes(
+        '[GW-SM] mounting with module loads pending {"pending":1}'
+      )
+    );
+  });
+
+  it("shares the waiting run with a later root-only caller", async () => {
+    const { fixture, timers, gw } = waitingScene({
+      "/mods/a.js": { enabled: true },
+    });
+
+    const first = run(fixture, AFTER_LOADS);
+    const second = run(fixture, { rootOnly: true, remountContent: false });
+    assert.equal(second, first);
+    await flush();
+
+    delete gw.registry["/mods/a.js"];
+    timers.tick();
+    timers.tick();
+
+    assert.equal(await second, true);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+  });
+
+  it("does not wait without the option", async () => {
+    const { fixture, timers } = waitingScene({
+      "/mods/a.js": { enabled: true },
+    });
+
+    assert.equal(
+      await run(fixture, { rootOnly: true, remountContent: false }),
+      true
+    );
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(timers.pending(), 0);
+  });
+
+  it("does not wait when there is nothing to mount", async () => {
+    const timers = manualTimers();
+    const fixture = scene({
+      cmmOptions: { serverMods: [] },
+      stubs: {
+        requirejs: fakeRequirejs({ "/mods/a.js": { enabled: true } }),
+        setTimeout: timers.setTimeout,
+      },
+    });
+
+    assert.equal(await run(fixture, AFTER_LOADS), true);
+    assert.equal(timers.pending(), 0);
+  });
+});
