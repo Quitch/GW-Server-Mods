@@ -19,7 +19,8 @@
 
   // Root mounts are dropped by every unmountAllMemoryFiles, and the hooks bump
   // the generation as each teardown starts, so a run compares the generation
-  // it read on entry with the one its mounts were made under. See design.md.
+  // it reads as its mounts start with the one the existing mounts were made
+  // under. See design.md.
   var rootGeneration = 1;
   var rootMountedAt = 0;
   var rootMountedFor = "";
