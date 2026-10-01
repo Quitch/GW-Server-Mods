@@ -19,7 +19,8 @@
 
   // Root mounts are dropped by every unmountAllMemoryFiles, and the hooks bump
   // the generation as each teardown starts, so a run compares the generation
-  // it read on entry with the one its mounts were made under. See design.md.
+  // it reads as its mounts start with the one the existing mounts were made
+  // under. See design.md.
   var rootGeneration = 1;
   var rootMountedAt = 0;
   var rootMountedFor = "";
@@ -523,6 +524,84 @@
       });
   }
 
+  // A zip mount blocks every coui: read while it runs, which stalls other
+  // mods' RequireJS loads, so gw_start mounts once those have settled.
+  // RequireJS has no settled event, hence the poll. See design.md.
+  var SETTLE_POLL_MS = 50;
+  var SETTLE_MAX_POLLS = 200;
+
+  // An errored module stays registered for good, and so does everything
+  // waiting on it: RequireJS calls their errbacks but marks only the module
+  // that failed. So does one whose callback or factory threw, which leaves it
+  // `defining` - between polls nothing else can. None of them will ever load,
+  // so none counts.
+  function failed(registry, id, seen) {
+    var entry = _.has(registry, id) ? registry[id] : null;
+
+    if (!entry || seen[id]) {
+      return false;
+    }
+
+    seen[id] = true;
+
+    return (
+      !!entry.error ||
+      !!entry.defining ||
+      _.some(entry.depMaps, function (depMap) {
+        return !!depMap && failed(registry, depMap.id, seen);
+      })
+    );
+  }
+
+  function moduleLoadsPending() {
+    var pending = 0;
+
+    _.forEach(
+      root.requirejs.s && root.requirejs.s.contexts,
+      function (context) {
+        pending += _.size(context.defQueue);
+        _.forOwn(context.registry, function (entry, id) {
+          if (entry && entry.enabled && !failed(context.registry, id, {})) {
+            pending += 1;
+          }
+        });
+      }
+    );
+
+    return pending;
+  }
+
+  // Two quiet checks in a row: a require call registers only after
+  // RequireJS's own nextTick, which one check can fall before.
+  function moduleLoadsSettled() {
+    if (!root.requirejs) {
+      return Promise.resolve();
+    }
+
+    return new Promise(function (resolve) {
+      var polls = 0;
+      var quiet = 0;
+
+      function check() {
+        var pending = moduleLoadsPending();
+
+        polls += 1;
+        quiet = pending ? 0 : quiet + 1;
+
+        if (quiet >= 2) {
+          resolve();
+        } else if (polls >= SETTLE_MAX_POLLS) {
+          ns.log("mounting with module loads pending", { pending: pending });
+          resolve();
+        } else {
+          setTimeout(check, SETTLE_POLL_MS);
+        }
+      }
+
+      check();
+    });
+  }
+
   // Repeatable: Galactic War tears the mounts down more than once per battle.
   // remountContent is false only for a running battle, where it blanks the scene.
   function runOnce(options) {
@@ -542,9 +621,6 @@
 
     return Promise.resolve(ns.manifest.load()).then(function () {
       var mods = ns.manifest.activeServerMods();
-      // Read as the run starts, not when it was queued: a teardown that began
-      // in between has dropped the mounts the queued run is about to check.
-      var generation = rootGeneration;
 
       ns.manifest.rememberScenes(mods);
 
@@ -555,7 +631,17 @@
       }
 
       // Before the first mountAtRoot, while the base list is still readable.
-      return ns.settled([captureVanillaUnits()]).then(function () {
+      var waits = [captureVanillaUnits()];
+
+      if (options && options.afterModuleLoads) {
+        waits.push(timed(timing, "wait", moduleLoadsSettled()));
+      }
+
+      return ns.settled(waits).then(function () {
+        // Read as the mounts start, not when the run was queued or began
+        // waiting: a teardown in between has dropped the mounts it would check.
+        var generation = rootGeneration;
+
         return rootOnly
           ? mountRootOnly(mods, withContent, generation, timing)
           : mountForBattle(mods, withContent, generation, timing);
