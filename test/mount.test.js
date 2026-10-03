@@ -158,6 +158,7 @@ describe("mount.run", () => {
     );
     assert.equal(settled.ok, true);
     assert.equal(settled.count, 1);
+    assert.deepEqual(settled.mods, ["com.example.server@1.0.0"]);
     assert.equal(typeof settled.ms, "number");
     assert.deepEqual(Object.keys(settled.stages).sort(), [
       "content",
@@ -179,7 +180,7 @@ describe("mount.run", () => {
     await run(empty);
     assert.match(
       empty.console.lines.log.at(-1),
-      /^\[GW-SM\] mounted server mods \{"ok":true,"count":0,"ms":\d+,"stages":\{\}\}$/
+      /^\[GW-SM\] mounted server mods \{"ok":true,"count":0,"mods":\[\],"ms":\d+,"stages":\{\}\}$/
     );
 
     const refused = scene({ apiOptions: { remount: () => rejected("no") } });
@@ -192,6 +193,19 @@ describe("mount.run", () => {
       ).stages.content,
       "number"
     );
+  });
+
+  it("names a mod without a version by its identifier alone", async () => {
+    const fixture = scene({
+      cmmOptions: { serverMods: [mod({ version: "" })] },
+    });
+    await run(fixture);
+    const settled = JSON.parse(
+      fixture.console.lines.log
+        .at(-1)
+        .replace("[GW-SM] mounted server mods ", "")
+    );
+    assert.deepEqual(settled.mods, ["com.example.server"]);
   });
 
   it("root-mounts the paired client mods too", async () => {
