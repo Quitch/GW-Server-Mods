@@ -118,9 +118,11 @@ describe("modinfo release metadata", () => {
       "utf8"
     );
 
-    assert.match(
-      changelog,
-      new RegExp("^## v" + info.version.replace(/\./g, "\\.") + " ", "m")
+    const heading = "## v" + info.version + " ";
+
+    assert.ok(
+      changelog.split(/\r?\n/).some((line) => line.startsWith(heading)),
+      "CHANGELOG.md has no heading starting " + JSON.stringify(heading)
     );
   });
 });

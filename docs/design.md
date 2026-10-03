@@ -615,7 +615,9 @@ PA's log file keeps only the **first** console argument, so every call builds on
 concatenated string. Passing `message, detail` lands in the log as `message` alone.
 
 The line every run ends with carries its timings for the same reason:
-`mounted server mods {"ok":true,"count":7,"ms":2345,"stages":{"root":..,"server":..,"content":..,"merge":..,"verify":..}}`.
+`mounted server mods {"ok":true,"count":7,"mods":["com.example.server@1.0.0",..],"ms":2345,"stages":{"root":..,"server":..,"content":..,"merge":..,"verify":..}}`.
+`mods` names each mounted server mod as `identifier@version`, so a bug report's log says
+which server mods were in play; a mod with no version is named by its identifier alone.
 `ms` is the whole run; the stages are each one's own duration, and the three that run side
 by side (`content`, `merge` and the classification) overlap, so they do not sum to `ms`. A
 stage that was skipped reads as a few milliseconds. This is the instrument every
