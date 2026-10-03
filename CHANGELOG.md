@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Unreleased
+## v1.4.0 - 2026-10-03
 
 - Add mounted server mod information to the logs for diagnostic purposes
 
