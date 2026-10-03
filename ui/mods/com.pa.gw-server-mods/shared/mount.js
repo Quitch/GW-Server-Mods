@@ -450,6 +450,11 @@
     ns.log("mounted server mods", {
       ok: ok,
       count: mods.length,
+      mods: _.map(mods, function (mod) {
+        return mod.version.length
+          ? mod.identifier + "@" + mod.version
+          : mod.identifier;
+      }),
       ms: Date.now() - timing.started,
       stages: timing.stages,
     });
