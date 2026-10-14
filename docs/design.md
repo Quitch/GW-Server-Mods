@@ -410,7 +410,7 @@ themselves survive a remount - that was checked directly, before and after.
 Community Mods rebuilds it too, inside every teardown: `remountClientMods()` unmounts,
 mounts its client zips and calls `api.content.remount()` - before this mod's run has put
 the root zips back, so on its own that rebuild would not cover them and the run would have
-to pay a second one, ~4 s each, twice per solo launch and more in co-op. `shared/hooks.js` therefore takes
+to pay a second one, ~4 s each, once per referee teardown: once per solo launch, and more in co-op. `shared/hooks.js` therefore takes
 `api.content.remount` with an accessor: the wrapper mounts the root zips for the active
 set first (`mount.beforeContentRemount`, the same generation-checked batch a run uses),
 calls the real remount, and records the generation as registered
