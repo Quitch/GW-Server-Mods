@@ -82,26 +82,93 @@
     return rootMountedAt === generation && rootMountedFor === rootPathKey(mods);
   }
 
+  // Root mounts outlive the page that made them, and every
+  // unmountAllMemoryFiles drops this memory file with them, in any scene. See
+  // design.md.
+  var ROOT_RECORD = "/gw_server_mods/root_mounts.json";
+
+  function rootRecord(mods) {
+    return _.map(
+      _.filter(mods, function (mod) {
+        return !mod.fileSystem;
+      }),
+      function (mod) {
+        return mod.installedPath + "@" + mod.version;
+      }
+    )
+      .sort()
+      .join("\n");
+  }
+
+  function rootMountsSurvived(record) {
+    if (!record.length) {
+      return Promise.resolve(false);
+    }
+
+    return Promise.resolve(
+      $.ajax({ url: "coui:/" + ROOT_RECORD, dataType: "text", cache: false })
+    ).then(function (text) {
+      return text === record;
+    }, nothing);
+  }
+
+  // A teardown issued after this call drops the record; one that started
+  // before it has already moved the generation, and must not be followed by
+  // a record of the mounts it dropped. Nothing in this page reads the record,
+  // so the run does not wait for it.
+  function recordRootMounts(record, generation) {
+    if (
+      !record.length ||
+      generation !== rootGeneration ||
+      !_.isFunction(api.file.mountMemoryFiles)
+    ) {
+      return;
+    }
+
+    var files = {};
+    files[ROOT_RECORD] = record;
+
+    Promise.resolve(api.file.mountMemoryFiles(files)).then(nothing, nothing);
+  }
+
   // The zips are already at "/" when the same set was mounted under this
-  // generation, so the batch is skipped; a set that changed - a faction
-  // toggled - mounts again whatever the generation.
+  // generation, or by an earlier page with no teardown since, so the batch is
+  // skipped; a set that changed - a faction toggled - mounts again whatever
+  // the generation.
   function mountRoots(mods, generation) {
     if (rootMountsCurrent(mods, generation)) {
       return Promise.resolve({ ok: true, skipped: true });
     }
 
-    return ns.settled(_.map(mods, mountAtRoot)).then(function (results) {
-      var ok = !_.includes(results, false);
+    var record = rootRecord(mods);
 
-      // Whatever the catalogue covered, it was not these mounts.
-      contentRegisteredAt = 0;
+    function current() {
+      rootMountedAt = generation;
+      rootMountedFor = rootPathKey(mods);
+    }
 
-      if (ok) {
-        rootMountedAt = generation;
-        rootMountedFor = rootPathKey(mods);
+    return rootMountsSurvived(record).then(function (survived) {
+      if (survived) {
+        current();
+
+        return { ok: true, skipped: true };
       }
 
-      return { ok: ok, skipped: false };
+      return ns.settled(_.map(mods, mountAtRoot)).then(function (results) {
+        var ok = !_.includes(results, false);
+
+        // Whatever the catalogue covered, it was not these mounts.
+        contentRegisteredAt = 0;
+
+        if (!ok) {
+          return { ok: false, skipped: false };
+        }
+
+        current();
+        recordRootMounts(record, generation);
+
+        return { ok: true, skipped: false };
+      });
     });
   }
 

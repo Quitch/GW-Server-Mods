@@ -60,6 +60,23 @@ function run(fixture, options) {
   return fixture.ns.mount.run(options);
 }
 
+const ROOT_RECORD = "/gw_server_mods/root_mounts.json";
+const ROOT_RECORD_URL = "coui://gw_server_mods/root_mounts.json";
+
+// The memory mounts other than the root-mount record, which a run writes
+// after every root batch and which the tests below assert separately.
+function unitListMounts(fixture) {
+  return fixture.api.calls.mountMemoryFiles.filter(
+    (call) => !(ROOT_RECORD in call[0])
+  );
+}
+
+function rootRecords(fixture) {
+  return fixture.api.calls.mountMemoryFiles
+    .filter((call) => ROOT_RECORD in call[0])
+    .map((call) => call[0][ROOT_RECORD]);
+}
+
 function stages(fixture) {
   const reported = [];
   fixture.model.gwoLaunchProgress = { stage: (key) => reported.push(key) };
@@ -131,13 +148,14 @@ describe("mount.run", () => {
       fixture.$.ajaxCalls.map((call) => [call.url, call.cache]),
       [
         [ROOT_LIST, false],
+        [ROOT_RECORD_URL, false],
         [MOD_LIST, true],
         ["coui://server_mods/mods.json", false],
         ["coui://server_mods/com.example.server/modinfo.json", false],
         ["spec://pa/units/unit_list.json", true],
       ]
     );
-    assert.deepEqual(fixture.api.calls.mountMemoryFiles, [
+    assert.deepEqual(unitListMounts(fixture), [
       [
         {
           "/pa/units/unit_list.json": JSON.stringify({
@@ -276,7 +294,7 @@ describe("mount.run", () => {
     });
     await flush();
 
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
+    assert.equal(unitListMounts(fixture).length, 1);
     assert.equal(outcome, undefined);
     assert.equal(
       fixture.console.lines.log.some((line) =>
@@ -352,7 +370,7 @@ describe("mount.run", () => {
       ),
       true
     );
-    assert.equal(relevant.api.calls.mountMemoryFiles.length, 0);
+    assert.equal(unitListMounts(relevant).length, 0);
 
     const aiOnly = scene({
       cmmOptions: { serverMods: [folder] },
@@ -553,7 +571,7 @@ describe("the merged unit list", () => {
       fixture.$.ajaxCalls.some((call) => call.url === MOD_LIST),
       false
     );
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 0);
+    assert.equal(unitListMounts(fixture).length, 0);
     assert.equal(
       fixture.console.lines.log.includes(
         "[GW-SM] unit list merge disabled by Community Mods"
@@ -580,7 +598,7 @@ describe("the merged unit list", () => {
     await run(fixture);
 
     const written = JSON.parse(
-      fixture.api.calls.mountMemoryFiles[0][0]["/pa/units/unit_list.json"]
+      unitListMounts(fixture)[0][0]["/pa/units/unit_list.json"]
     );
     assert.deepEqual(written.units.sort(), [
       "/pa/units/base.json",
@@ -604,7 +622,7 @@ describe("the merged unit list", () => {
       false
     );
     const written = JSON.parse(
-      fixture.api.calls.mountMemoryFiles[0][0]["/pa/units/unit_list.json"]
+      unitListMounts(fixture)[0][0]["/pa/units/unit_list.json"]
     );
     assert.equal(written.units.indexOf("/pa/units/base.json") !== -1, true);
   });
@@ -645,7 +663,7 @@ describe("the merged unit list", () => {
       true
     );
     const written = JSON.parse(
-      fixture.api.calls.mountMemoryFiles[0][0]["/pa/units/unit_list.json"]
+      unitListMounts(fixture)[0][0]["/pa/units/unit_list.json"]
     );
     assert.equal(written.units.indexOf("/pa/units/a.json") !== -1, true);
   });
@@ -661,7 +679,7 @@ describe("the merged unit list", () => {
       fixture.$.ajaxCalls.filter((call) => call.url === ROOT_LIST).length,
       1
     );
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 2);
+    assert.equal(unitListMounts(fixture).length, 2);
   });
 
   // A base list that cannot be read costs units in one faction combination. It
@@ -681,7 +699,7 @@ describe("the merged unit list", () => {
 
     assert.equal(await run(fixture), true);
     const written = JSON.parse(
-      fixture.api.calls.mountMemoryFiles[0][0]["/pa/units/unit_list.json"]
+      unitListMounts(fixture)[0][0]["/pa/units/unit_list.json"]
     );
     assert.deepEqual(written.units, ["/pa/units/faction.json"]);
     assert.equal(
@@ -697,7 +715,7 @@ describe("the merged unit list", () => {
 
     await run(fixture);
 
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
+    assert.equal(unitListMounts(fixture).length, 1);
   });
 
   it("is not written when no mod ships a readable list", async () => {
@@ -707,7 +725,7 @@ describe("the merged unit list", () => {
 
     await run(fixture);
 
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 0);
+    assert.equal(unitListMounts(fixture).length, 0);
     assert.deepEqual(fixture.codes(), []);
   });
 
@@ -729,7 +747,7 @@ describe("the merged unit list", () => {
 
     await run(fixture);
 
-    assert.deepEqual(fixture.api.calls.mountMemoryFiles, [
+    assert.deepEqual(unitListMounts(fixture), [
       [
         {
           "/pa/units/unit_list.json": JSON.stringify({
@@ -760,9 +778,8 @@ describe("the merged unit list", () => {
     await run(fixture);
 
     assert.deepEqual(
-      JSON.parse(
-        fixture.api.calls.mountMemoryFiles[0][0]["/pa/units/unit_list.json"]
-      ).units,
+      JSON.parse(unitListMounts(fixture)[0][0]["/pa/units/unit_list.json"])
+        .units,
       ["/pa/units/a.json", "/pa/units/b.json", "/pa/units/c.json"]
     );
     assert.equal(
@@ -810,22 +827,19 @@ describe("the merged unit list", () => {
     });
 
     assert.equal(await run(fixture), true);
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
+    assert.equal(unitListMounts(fixture).length, 1);
     gated = true;
 
     // Only a run that mounts can re-shadow, and only a teardown makes it mount.
     fixture.ns.mount.invalidate();
     const rootOnly = run(fixture, { rootOnly: true, remountContent: false });
     await flush();
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
+    assert.equal(unitListMounts(fixture).length, 1);
 
     gate.resolve(true);
     assert.equal(await rootOnly, true);
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 2);
-    assert.deepEqual(
-      fixture.api.calls.mountMemoryFiles[1],
-      fixture.api.calls.mountMemoryFiles[0]
-    );
+    assert.equal(unitListMounts(fixture).length, 2);
+    assert.deepEqual(unitListMounts(fixture)[1], unitListMounts(fixture)[0]);
     // Restored from the cache, not re-merged.
     assert.equal(
       fixture.$.ajaxCalls.filter((call) => call.url === MOD_LIST).length,
@@ -846,14 +860,19 @@ describe("the merged unit list", () => {
       await run(fixture, { rootOnly: true, remountContent: false }),
       true
     );
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 0);
+    assert.equal(unitListMounts(fixture).length, 0);
   });
 
   it("reports a restore the engine refused", async () => {
     let mounts = 0;
     const fixture = scene({
       apiOptions: {
-        mountMemoryFiles: () => (++mounts === 1 ? undefined : rejected("no")),
+        mountMemoryFiles: (files) => {
+          if (ROOT_RECORD in files) {
+            return undefined;
+          }
+          return ++mounts === 1 ? undefined : rejected("no");
+        },
       },
     });
 
@@ -964,12 +983,12 @@ describe("mount.run rootOnly", () => {
       ["/download/com.faction-client.zip", "/", false],
     ]);
     assert.equal(fixture.api.calls.remount.length, 1);
-    assert.deepEqual(fixture.api.calls.mountMemoryFiles, []);
+    assert.deepEqual(unitListMounts(fixture), []);
     // gw_start captures the base list as well: its own root mounts are what
     // would shadow it for every later scene.
     assert.deepEqual(
       fixture.$.ajaxCalls.map((call) => call.url),
-      [ROOT_LIST]
+      [ROOT_LIST, ROOT_RECORD_URL]
     );
     assert.deepEqual(JSON.parse(storage.store.gw_server_mods_scenes), {
       live_game: ["coui://ui/mods/com.faction/live_game.js"],
@@ -1037,7 +1056,7 @@ describe("mount.run rootOnly", () => {
     assert.equal(await second, true);
     assert.equal(fixture.ns.mount.sequence(), 2);
     // Only the queued battle run merges; neither caller remounts content.
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
+    assert.equal(unitListMounts(fixture).length, 1);
     assert.equal(fixture.api.calls.remount.length, 0);
   });
 
@@ -1092,7 +1111,7 @@ describe("the root mount generation", () => {
     assert.equal(fixture.api.calls.zipMount.length, 1);
     assert.equal(fixture.api.calls.remount.length, 1);
     assert.equal(fixture.cmm.calls.mountServerMods, 2);
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 2);
+    assert.equal(unitListMounts(fixture).length, 2);
     assert.equal(fixture.ns.mount.sequence(), 2);
   });
 
@@ -1106,7 +1125,7 @@ describe("the root mount generation", () => {
     );
 
     assert.equal(fixture.api.calls.zipMount.length, 1);
-    assert.equal(fixture.api.calls.mountMemoryFiles.length, 1);
+    assert.equal(unitListMounts(fixture).length, 1);
     assert.equal(
       fixture.console.lines.log.some((line) =>
         line.startsWith("[GW-SM] restored merged unit list")
@@ -1196,6 +1215,181 @@ describe("the root mount generation", () => {
     await run(fixture);
 
     assert.equal(fixture.alarm("content_remount_unavailable").length, 2);
+  });
+});
+
+// Root mounts outlive the page that made them, so each batch leaves a record
+// as a memory file, which the same unmountAllMemoryFiles drops with the zips.
+// A new page that finds the record for its set skips the batch. See design.md.
+describe("the root mount record", () => {
+  const RECORD = "/download/com.example.server.zip@1.0.0";
+
+  function recorded(text) {
+    return {
+      ajax: (url) => {
+        if (url === ROOT_RECORD_URL) {
+          if (text === null) {
+            throw new Error("404");
+          }
+          return text;
+        }
+        return url.endsWith("unit_list.json")
+          ? JSON.stringify({ units: [] })
+          : "";
+      },
+    };
+  }
+
+  it("is written after a batch that mounted every zip", async () => {
+    const fixture = scene();
+
+    assert.equal(await run(fixture), true);
+
+    assert.deepEqual(rootRecords(fixture), [RECORD]);
+    // Before the merged list, so a later unmount drops both together.
+    assert.ok(ROOT_RECORD in fixture.api.calls.mountMemoryFiles[0][0]);
+  });
+
+  it("names every zip with its version, folder mods aside, in a stable order", async () => {
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [
+          mod({
+            identifier: "com.example.second",
+            installedPath: "/download/com.example.second.zip",
+            version: "2.0",
+          }),
+          mod(),
+          mod({ identifier: "com.example.folder", fileSystem: true }),
+        ],
+      },
+    });
+
+    await run(fixture, { rootOnly: true, remountContent: false });
+
+    assert.deepEqual(rootRecords(fixture), [
+      "/download/com.example.second.zip@2.0\n" + RECORD,
+    ]);
+  });
+
+  it("lets a new page skip the batch for the same set", async () => {
+    const fixture = scene(recorded(RECORD));
+    const reported = stages(fixture);
+
+    assert.equal(await run(fixture), true);
+
+    assert.deepEqual(fixture.api.calls.zipMount, []);
+    assert.deepEqual(rootRecords(fixture), []);
+    // The catalogue is per page, so it is still registered once.
+    assert.equal(fixture.api.calls.remount.length, 1);
+    assert.equal(fixture.cmm.calls.mountServerMods, 1);
+    assert.equal(reported[0], "!LOC:Mounting server mods");
+  });
+
+  it("then treats the mounts as current for the rest of the page", async () => {
+    const fixture = scene(recorded(RECORD));
+
+    await run(fixture, { rootOnly: true, remountContent: false });
+    await run(fixture, { rootOnly: true, remountContent: false });
+
+    assert.equal(
+      fixture.$.ajaxCalls.filter((call) => call.url === ROOT_RECORD_URL).length,
+      1
+    );
+    assert.deepEqual(fixture.api.calls.zipMount, []);
+  });
+
+  it("mounts when the record names another set", async () => {
+    const fixture = scene(recorded("/download/com.other.zip@1.0.0"));
+
+    assert.equal(await run(fixture), true);
+
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.deepEqual(rootRecords(fixture), [RECORD]);
+  });
+
+  it("mounts when the record cannot be read", async () => {
+    const fixture = scene(recorded(null));
+
+    assert.equal(await run(fixture), true);
+
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.deepEqual(fixture.codes(), []);
+  });
+
+  it("mounts after a teardown in the same page, whatever an earlier page left", async () => {
+    const fixture = scene(recorded(RECORD));
+
+    await run(fixture);
+    fixture.ns.mount.invalidate();
+    // The teardown dropped the record with the zips.
+    fixture.$.ajaxCalls.length = 0;
+    const torn = scene(recorded(null));
+    torn.ns.mount.invalidate();
+    assert.equal(await run(torn), true);
+
+    assert.equal(torn.api.calls.zipMount.length, 1);
+    assert.deepEqual(rootRecords(torn), [RECORD]);
+  });
+
+  it("is not written when a zip failed to mount", async () => {
+    const fixture = scene({
+      apiOptions: { zipMount: () => resolved(false) },
+    });
+
+    await run(fixture);
+
+    assert.deepEqual(rootRecords(fixture), []);
+  });
+
+  it("is not written once a teardown has started under the batch", async () => {
+    const mounting = Deferred();
+    const fixture = scene({
+      apiOptions: { zipMount: () => mounting.promise() },
+    });
+
+    const running = run(fixture, { rootOnly: true, remountContent: false });
+    await flush();
+    fixture.ns.mount.invalidate();
+    mounting.resolve(true);
+    await running;
+
+    assert.deepEqual(rootRecords(fixture), []);
+  });
+
+  it("is neither read nor written for folder mods alone", async () => {
+    const fixture = scene({
+      cmmOptions: { serverMods: [mod({ fileSystem: true })] },
+    });
+
+    await run(fixture, { rootOnly: true, remountContent: false });
+
+    assert.equal(
+      fixture.$.ajaxCalls.some((call) => call.url === ROOT_RECORD_URL),
+      false
+    );
+    assert.deepEqual(rootRecords(fixture), []);
+  });
+
+  it("is not written without mountMemoryFiles", async () => {
+    const fixture = scene({ apiOptions: { mountMemoryFiles: false } });
+
+    await run(fixture, { rootOnly: true, remountContent: false });
+
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(fixture.ns.mount.state().mounted, true);
+  });
+
+  it("does not hold the run when the engine rejects it", async () => {
+    const fixture = scene({
+      apiOptions: { mountMemoryFiles: () => rejected("refused") },
+    });
+
+    assert.equal(
+      await run(fixture, { rootOnly: true, remountContent: false }),
+      true
+    );
+    assert.deepEqual(rootRecords(fixture), [RECORD]);
   });
 });
 

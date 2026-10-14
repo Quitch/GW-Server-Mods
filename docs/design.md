@@ -352,7 +352,22 @@ The content catalogue follows the same rule: `api.content.remount()` is recorded
 generation whose root mounts it covered, and a run whose generation is already registered skips
 it. Root mounts recorded by a run that was in flight when a teardown began carry the old
 generation, so the next run mounts again; a batch with a failed mount records nothing and is
-retried. All of this is per page: a new scene starts at "nothing mounted".
+retried. The generation and the catalogue record are per page: a new scene starts at
+"nothing mounted" and registers the content again.
+
+The mounts themselves are not per page. They survive every scene change - `gw_start` to
+`gw_play`, a battle and the return from it, co-op entry - and re-mounting a zip that is already
+mounted is not cheap: about 2.3 s for 20 zips on `gw_play` entry, with every `coui:` read
+blocked meanwhile. So a batch that mounted every zip also mounts a small memory file,
+`/gw_server_mods/root_mounts.json`, holding each zip's path and version. Memory files and zip
+mounts go together - every `unmountAllMemoryFiles` drops both, in whatever scene it runs,
+hooked or not - so a record that reads back with the same set means the zips are still there. A
+run whose in-page state is not current reads the record first and, on a match, takes the mounts
+as current for its generation and skips the batch. An unreadable record, or one for another
+set, mounts as before. The record is not written once the generation has moved under the batch:
+the teardown that moved it may already have dropped the mounts, and the record must not outlive
+them. Nothing re-shadowed in a skipped batch, so a root-only run that skipped this way does not
+restore the merged list either - there is none in a new page to restore.
 
 ### A faction's art is split across two mods
 
