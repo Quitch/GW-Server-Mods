@@ -25,6 +25,9 @@
   var rootMountedAt = 0;
   var rootMountedFor = "";
   var contentRegisteredAt = 0;
+  // Every teardown drops the root record, so only a page that has seen none
+  // reads it. See design.md.
+  var tornDown = false;
 
   // A read that failed is a read that found nothing; nothing here treats the
   // two differently, and none of these may reject.
@@ -67,27 +70,81 @@
     }, failed);
   }
 
-  function rootPathKey(mods) {
+  // Each zip's path and version, so a changed set or an updated zip mounts
+  // again.
+  function rootKey(mods) {
     return _.map(
       _.filter(mods, function (mod) {
         return !mod.fileSystem;
       }),
-      "installedPath"
+      function (mod) {
+        return mod.installedPath + "@" + mod.version;
+      }
     )
       .sort()
       .join("\n");
   }
 
   function rootMountsCurrent(mods, generation) {
-    return rootMountedAt === generation && rootMountedFor === rootPathKey(mods);
+    return rootMountedAt === generation && rootMountedFor === rootKey(mods);
+  }
+
+  // See design.md.
+  var ROOT_RECORD = "/gw_server_mods/root_mounts.json";
+
+  function rootMountsSurvived(key) {
+    if (!key.length || tornDown) {
+      return Promise.resolve(false);
+    }
+
+    return Promise.resolve(
+      $.ajax({ url: "coui:/" + ROOT_RECORD, dataType: "text", cache: false })
+    ).then(function (text) {
+      return text === key && !tornDown;
+    }, nothing);
+  }
+
+  // See design.md.
+  function writeRootRecord(key, generation) {
+    if (
+      generation !== rootGeneration ||
+      !_.isFunction(api.file.mountMemoryFiles)
+    ) {
+      return;
+    }
+
+    var files = {};
+    files[ROOT_RECORD] = key;
+
+    Promise.resolve(api.file.mountMemoryFiles(files)).then(nothing, nothing);
   }
 
   // The zips are already at "/" when the same set was mounted under this
-  // generation, so the batch is skipped; a set that changed - a faction
-  // toggled - mounts again whatever the generation.
+  // generation, or by an earlier page with no teardown since, so the batch is
+  // skipped; a set that changed - a faction toggled - mounts again whatever
+  // the generation.
   function mountRoots(mods, generation) {
     if (rootMountsCurrent(mods, generation)) {
       return Promise.resolve({ ok: true, skipped: true });
+    }
+
+    var key = rootKey(mods);
+
+    return rootMountsSurvived(key).then(function (survived) {
+      if (survived) {
+        rootMountedAt = generation;
+        rootMountedFor = key;
+
+        return { ok: true, skipped: true };
+      }
+
+      return mountBatch(mods, key, generation);
+    });
+  }
+
+  function mountBatch(mods, key, generation) {
+    if (key.length) {
+      writeRootRecord("", generation);
     }
 
     return ns.settled(_.map(mods, mountAtRoot)).then(function (results) {
@@ -98,7 +155,11 @@
 
       if (ok) {
         rootMountedAt = generation;
-        rootMountedFor = rootPathKey(mods);
+        rootMountedFor = key;
+
+        if (key.length) {
+          writeRootRecord(key, generation);
+        }
       }
 
       return { ok: ok, skipped: false };
@@ -715,6 +776,7 @@
     // catalogue built over them are gone, whatever a run in flight recorded.
     invalidate: function () {
       rootGeneration += 1;
+      tornDown = true;
     },
     generation: function () {
       return rootGeneration;
