@@ -10,6 +10,7 @@ const { sharedScene } = require("../scripts/lib/shared-scene.js");
 const { mod } = require("../scripts/lib/fake-cmm.js");
 const {
   Deferred,
+  createFakeJQuery,
   enginePromise,
   rejected,
   resolved,
@@ -63,8 +64,9 @@ function run(fixture, options) {
 const ROOT_RECORD = "/gw_server_mods/root_mounts.json";
 const ROOT_RECORD_URL = "coui://gw_server_mods/root_mounts.json";
 
-// The memory mounts other than the root-mount record, which a run writes
-// after every root batch and which the tests below assert separately.
+// The memory mounts other than the root-mount record, which a run clears
+// before every root batch and writes after one that mounted every zip, and
+// which the tests below assert separately.
 function unitListMounts(fixture) {
   return fixture.api.calls.mountMemoryFiles.filter(
     (call) => !(ROOT_RECORD in call[0])
@@ -1240,14 +1242,17 @@ describe("the root mount record", () => {
     };
   }
 
-  it("is written after a batch that mounted every zip", async () => {
+  function recordReads(fixture) {
+    return fixture.$.ajaxCalls.filter((call) => call.url === ROOT_RECORD_URL)
+      .length;
+  }
+
+  it("is cleared before a batch and written after one that mounted every zip", async () => {
     const fixture = scene();
 
     assert.equal(await run(fixture), true);
 
-    assert.deepEqual(rootRecords(fixture), [RECORD]);
-    // Before the merged list, so a later unmount drops both together.
-    assert.ok(ROOT_RECORD in fixture.api.calls.mountMemoryFiles[0][0]);
+    assert.deepEqual(rootRecords(fixture), ["", RECORD]);
   });
 
   it("names every zip with its version, folder mods aside, in a stable order", async () => {
@@ -1268,6 +1273,7 @@ describe("the root mount record", () => {
     await run(fixture, { rootOnly: true, remountContent: false });
 
     assert.deepEqual(rootRecords(fixture), [
+      "",
       "/download/com.example.second.zip@2.0\n" + RECORD,
     ]);
   });
@@ -1292,20 +1298,17 @@ describe("the root mount record", () => {
     await run(fixture, { rootOnly: true, remountContent: false });
     await run(fixture, { rootOnly: true, remountContent: false });
 
-    assert.equal(
-      fixture.$.ajaxCalls.filter((call) => call.url === ROOT_RECORD_URL).length,
-      1
-    );
+    assert.equal(recordReads(fixture), 1);
     assert.deepEqual(fixture.api.calls.zipMount, []);
   });
 
-  it("mounts when the record names another set", async () => {
-    const fixture = scene(recorded("/download/com.other.zip@1.0.0"));
+  it("mounts again when the version of a zip changed", async () => {
+    const fixture = scene(recorded("/download/com.example.server.zip@0.9.0"));
 
     assert.equal(await run(fixture), true);
 
     assert.equal(fixture.api.calls.zipMount.length, 1);
-    assert.deepEqual(rootRecords(fixture), [RECORD]);
+    assert.deepEqual(rootRecords(fixture), ["", RECORD]);
   });
 
   it("mounts when the record cannot be read", async () => {
@@ -1317,29 +1320,56 @@ describe("the root mount record", () => {
     assert.deepEqual(fixture.codes(), []);
   });
 
-  it("mounts after a teardown in the same page, whatever an earlier page left", async () => {
+  // The teardown dropped the record with the zips, so the page neither trusts
+  // nor waits on a read of it.
+  it("is not read after a teardown in the same page", async () => {
     const fixture = scene(recorded(RECORD));
 
     await run(fixture);
     fixture.ns.mount.invalidate();
-    // The teardown dropped the record with the zips.
-    fixture.$.ajaxCalls.length = 0;
-    const torn = scene(recorded(null));
-    torn.ns.mount.invalidate();
-    assert.equal(await run(torn), true);
+    assert.equal(await run(fixture), true);
 
-    assert.equal(torn.api.calls.zipMount.length, 1);
-    assert.deepEqual(rootRecords(torn), [RECORD]);
+    assert.equal(recordReads(fixture), 1);
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.deepEqual(rootRecords(fixture), ["", RECORD]);
   });
 
-  it("is not written when a zip failed to mount", async () => {
+  // A read answered before the engine's unmount lands would otherwise mark
+  // zips that are about to be dropped as current.
+  it("is not trusted when a teardown starts while it is read", async () => {
+    const reading = Deferred();
+    const $ = createFakeJQuery({ ajax: recorded(RECORD).ajax });
+    const ajax = $.ajax;
+    $.ajax = (settings) => {
+      if (settings.url !== ROOT_RECORD_URL) {
+        return ajax(settings);
+      }
+      $.ajaxCalls.push(settings);
+      return reading.promise();
+    };
+    const fixture = scene({ $: $ });
+
+    const running = run(fixture, { rootOnly: true, remountContent: false });
+    await flush();
+    fixture.ns.mount.invalidate();
+    reading.resolve(RECORD);
+    assert.equal(await running, true);
+
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    // The batch's generation moved too, so neither write is made.
+    assert.deepEqual(rootRecords(fixture), []);
+  });
+
+  // A record left by the last set would otherwise let a return to that set
+  // skip the mounts that put its zips back on top.
+  it("is left cleared when a zip failed to mount", async () => {
     const fixture = scene({
       apiOptions: { zipMount: () => resolved(false) },
     });
 
     await run(fixture);
 
-    assert.deepEqual(rootRecords(fixture), []);
+    assert.deepEqual(rootRecords(fixture), [""]);
   });
 
   it("is not written once a teardown has started under the batch", async () => {
@@ -1354,7 +1384,7 @@ describe("the root mount record", () => {
     mounting.resolve(true);
     await running;
 
-    assert.deepEqual(rootRecords(fixture), []);
+    assert.deepEqual(rootRecords(fixture), [""]);
   });
 
   it("is neither read nor written for folder mods alone", async () => {
@@ -1364,10 +1394,7 @@ describe("the root mount record", () => {
 
     await run(fixture, { rootOnly: true, remountContent: false });
 
-    assert.equal(
-      fixture.$.ajaxCalls.some((call) => call.url === ROOT_RECORD_URL),
-      false
-    );
+    assert.equal(recordReads(fixture), 0);
     assert.deepEqual(rootRecords(fixture), []);
   });
 
@@ -1389,7 +1416,7 @@ describe("the root mount record", () => {
       await run(fixture, { rootOnly: true, remountContent: false }),
       true
     );
-    assert.deepEqual(rootRecords(fixture), [RECORD]);
+    assert.deepEqual(rootRecords(fixture), ["", RECORD]);
   });
 });
 

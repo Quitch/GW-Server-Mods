@@ -342,7 +342,7 @@ Zip mounts at `/` are dropped by that same `unmountAllMemoryFiles`, and by nothi
 scene's life, so `mount.js` counts teardowns rather than probing the filesystem. The hooks bump
 a **root generation** as each teardown starts; a run reads the generation when it starts - not
 when it was queued, since a teardown can begin in between - and records it against the sorted
-zip paths its root mounts covered. A later run under the same generation and the same path set
+zip paths and versions its root mounts covered. A later run under the same generation and the same path set
 skips the root mounts, and a root-only run that skipped them also skips the merged-list restore,
 because nothing re-shadowed the memory file. The restore is therefore reached only after a
 teardown. A path set that changed - a faction toggled in Community Mods - mounts again whatever
@@ -359,15 +359,22 @@ The mounts themselves are not per page. They survive every scene change - `gw_st
 `gw_play`, a battle and the return from it, co-op entry - and re-mounting a zip that is already
 mounted is not cheap: about 2.3 s for 20 zips on `gw_play` entry, with every `coui:` read
 blocked meanwhile. So a batch that mounted every zip also mounts a small memory file,
-`/gw_server_mods/root_mounts.json`, holding each zip's path and version. Memory files and zip
-mounts go together - every `unmountAllMemoryFiles` drops both, in whatever scene it runs,
-hooked or not - so a record that reads back with the same set means the zips are still there. A
-run whose in-page state is not current reads the record first and, on a match, takes the mounts
-as current for its generation and skips the batch. An unreadable record, or one for another
-set, mounts as before. The record is not written once the generation has moved under the batch:
-the teardown that moved it may already have dropped the mounts, and the record must not outlive
-them. Nothing re-shadowed in a skipped batch, so a root-only run that skipped this way does not
-restore the merged list either - there is none in a new page to restore.
+`/gw_server_mods/root_mounts.json`, holding each zip's path and version, and a batch clears it
+before it starts, so a batch that fails or is cut short leaves no record of the set before it.
+Memory files and zip mounts go together - every `unmountAllMemoryFiles` drops both, in whatever
+scene it runs, hooked or not - so a record that reads back with the same set means the zips are
+still there. A run whose in-page state is not current reads the record first and, on a match,
+takes the mounts as current for its generation and skips the batch. An unreadable record, or
+one for another set, mounts as before. The run does not wait for the record to be written:
+nothing in the page reads it back.
+
+The record is read only in a page that has seen no teardown, and trusted only if none began
+while it was read. Every teardown drops the record, so after one there is nothing to find; and
+the hooks bump the generation before the engine's unmount runs, so a read answered in between
+would mark zips that are about to go as current. For the same reason the record is not written
+once the generation has moved under the batch. Nothing re-shadowed in a skipped batch, so a
+root-only run that skipped this way does not restore the merged list either - there is none in
+a new page to restore.
 
 ### A faction's art is split across two mods
 

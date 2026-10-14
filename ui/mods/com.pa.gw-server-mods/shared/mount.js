@@ -25,6 +25,9 @@
   var rootMountedAt = 0;
   var rootMountedFor = "";
   var contentRegisteredAt = 0;
+  // Every teardown drops the root record, so only a page that has seen none
+  // reads it. See design.md.
+  var tornDown = false;
 
   // A read that failed is a read that found nothing; nothing here treats the
   // two differently, and none of these may reject.
@@ -67,27 +70,9 @@
     }, failed);
   }
 
-  function rootPathKey(mods) {
-    return _.map(
-      _.filter(mods, function (mod) {
-        return !mod.fileSystem;
-      }),
-      "installedPath"
-    )
-      .sort()
-      .join("\n");
-  }
-
-  function rootMountsCurrent(mods, generation) {
-    return rootMountedAt === generation && rootMountedFor === rootPathKey(mods);
-  }
-
-  // Root mounts outlive the page that made them, and every
-  // unmountAllMemoryFiles drops this memory file with them, in any scene. See
-  // design.md.
-  var ROOT_RECORD = "/gw_server_mods/root_mounts.json";
-
-  function rootRecord(mods) {
+  // Each zip's path and version, so a changed set or an updated zip mounts
+  // again.
+  function rootKey(mods) {
     return _.map(
       _.filter(mods, function (mod) {
         return !mod.fileSystem;
@@ -100,25 +85,28 @@
       .join("\n");
   }
 
-  function rootMountsSurvived(record) {
-    if (!record.length) {
+  function rootMountsCurrent(mods, generation) {
+    return rootMountedAt === generation && rootMountedFor === rootKey(mods);
+  }
+
+  // See design.md.
+  var ROOT_RECORD = "/gw_server_mods/root_mounts.json";
+
+  function rootMountsSurvived(key) {
+    if (!key.length || tornDown) {
       return Promise.resolve(false);
     }
 
     return Promise.resolve(
       $.ajax({ url: "coui:/" + ROOT_RECORD, dataType: "text", cache: false })
     ).then(function (text) {
-      return text === record;
+      return text === key && !tornDown;
     }, nothing);
   }
 
-  // A teardown issued after this call drops the record; one that started
-  // before it has already moved the generation, and must not be followed by
-  // a record of the mounts it dropped. Nothing in this page reads the record,
-  // so the run does not wait for it.
-  function recordRootMounts(record, generation) {
+  // See design.md.
+  function writeRootRecord(key, generation) {
     if (
-      !record.length ||
       generation !== rootGeneration ||
       !_.isFunction(api.file.mountMemoryFiles)
     ) {
@@ -126,7 +114,7 @@
     }
 
     var files = {};
-    files[ROOT_RECORD] = record;
+    files[ROOT_RECORD] = key;
 
     Promise.resolve(api.file.mountMemoryFiles(files)).then(nothing, nothing);
   }
@@ -140,18 +128,18 @@
       return Promise.resolve({ ok: true, skipped: true });
     }
 
-    var record = rootRecord(mods);
+    var key = rootKey(mods);
 
-    function current() {
-      rootMountedAt = generation;
-      rootMountedFor = rootPathKey(mods);
-    }
-
-    return rootMountsSurvived(record).then(function (survived) {
+    return rootMountsSurvived(key).then(function (survived) {
       if (survived) {
-        current();
+        rootMountedAt = generation;
+        rootMountedFor = key;
 
         return { ok: true, skipped: true };
+      }
+
+      if (key.length) {
+        writeRootRecord("", generation);
       }
 
       return ns.settled(_.map(mods, mountAtRoot)).then(function (results) {
@@ -160,14 +148,16 @@
         // Whatever the catalogue covered, it was not these mounts.
         contentRegisteredAt = 0;
 
-        if (!ok) {
-          return { ok: false, skipped: false };
+        if (ok) {
+          rootMountedAt = generation;
+          rootMountedFor = key;
+
+          if (key.length) {
+            writeRootRecord(key, generation);
+          }
         }
 
-        current();
-        recordRootMounts(record, generation);
-
-        return { ok: true, skipped: false };
+        return { ok: ok, skipped: false };
       });
     });
   }
@@ -782,6 +772,7 @@
     // catalogue built over them are gone, whatever a run in flight recorded.
     invalidate: function () {
       rootGeneration += 1;
+      tornDown = true;
     },
     generation: function () {
       return rootGeneration;
