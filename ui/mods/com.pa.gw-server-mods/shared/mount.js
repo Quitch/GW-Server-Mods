@@ -138,27 +138,31 @@
         return { ok: true, skipped: true };
       }
 
-      if (key.length) {
-        writeRootRecord("", generation);
+      return mountBatch(mods, key, generation);
+    });
+  }
+
+  function mountBatch(mods, key, generation) {
+    if (key.length) {
+      writeRootRecord("", generation);
+    }
+
+    return ns.settled(_.map(mods, mountAtRoot)).then(function (results) {
+      var ok = !_.includes(results, false);
+
+      // Whatever the catalogue covered, it was not these mounts.
+      contentRegisteredAt = 0;
+
+      if (ok) {
+        rootMountedAt = generation;
+        rootMountedFor = key;
+
+        if (key.length) {
+          writeRootRecord(key, generation);
+        }
       }
 
-      return ns.settled(_.map(mods, mountAtRoot)).then(function (results) {
-        var ok = !_.includes(results, false);
-
-        // Whatever the catalogue covered, it was not these mounts.
-        contentRegisteredAt = 0;
-
-        if (ok) {
-          rootMountedAt = generation;
-          rootMountedFor = key;
-
-          if (key.length) {
-            writeRootRecord(key, generation);
-          }
-        }
-
-        return { ok: ok, skipped: false };
-      });
+      return { ok: ok, skipped: false };
     });
   }
 
