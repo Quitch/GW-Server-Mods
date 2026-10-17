@@ -109,7 +109,8 @@
     return !!ready && _.isFunction(ready.state) && ready.state() === "resolved";
   }
 
-  // The mount order Community Mods uses: priority descending.
+  // The order Community Mods really mounts in: its "desc" sorts ascending
+  // under lodash 3.9.3.
   function fallbackServerMods() {
     return _.sortByOrder(
       _.filter(installed, "context", "server"),

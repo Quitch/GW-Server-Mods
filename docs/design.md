@@ -562,7 +562,7 @@ game's own loader, a global in every scene, and `loadScript` behind it is a sync
 XHR — so a call from this mod's scene script runs to completion before the scene binds,
 at the same point in the page's life the engine would have loaded them. The list comes
 from `manifest.scenes(scene)`: the union of the active server mods' `scenes`, computed
-where Community Mods is present and persisted to `sessionStorage` by every mount, because
+where Community Mods is present and persisted to `localStorage` by every mount, because
 `live_game` and its panels have neither the manager nor a store to ask. Each URL loads
 once per page, and a URL the scene or the global list already carries is skipped, which
 is what keeps a skirmish — where the engine did load them — from loading them twice.
