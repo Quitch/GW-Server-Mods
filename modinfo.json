@@ -39,15 +39,6 @@
       "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js"
     ],
-    "gw_lobby": [
-      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/hooks.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js",
-      "coui://ui/mods/com.pa.gw-server-mods/gw_lobby/keepalive.js"
-    ],
     "gw_play": [
       "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
@@ -62,10 +53,9 @@
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/hooks.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
-      "coui://ui/mods/com.pa.gw-server-mods/live_game/remount.js"
+      "coui://ui/mods/com.pa.gw-server-mods/live_game/ui.js"
     ],
     "shared_build": [
       "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
