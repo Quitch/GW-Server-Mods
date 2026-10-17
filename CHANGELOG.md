@@ -3,7 +3,7 @@
 ## Unreleased
 
 - The galaxy map is ready about 2 seconds sooner each time you enter it, including after a battle and when joining or hosting co-op: server mods that are still mounted from the previous screen are no longer mounted a second time
-- Galactic War now warns you to restart PA when you change your server mods after your first Galactic War battle: until a restart, PA keeps the first battle's unit list, so a faction you add or remove is not reflected in the battle
+- Galactic War now warns you to restart PA when you change your server mods after first entering the galaxy map: until a restart, PA keeps the unit list it read then, so a faction you add or remove is not reflected in battles
 
 ## v1.4.0 - 2026-10-03
 

@@ -1710,25 +1710,31 @@ describe("mount.run afterModuleLoads", () => {
 // a battle whose merge differs from the first one gets the old list.
 describe("the pinned unit list", () => {
   const PINNED = "gw_server_mods_pinned_unit_list";
-  const FIRST = JSON.stringify({
-    units: ["/pa/units/a.json", "/pa/units/b.json"],
-  });
+  const FIRST = ["/pa/units/a.json", "/pa/units/b.json"].join("\n");
+
+  function pinned(stored, options) {
+    const storage = fakeSessionStorage(
+      stored === undefined ? {} : { [PINNED]: stored }
+    );
+    const fixture = scene(
+      Object.assign({ stubs: { sessionStorage: storage } }, options)
+    );
+    fixture.storage = storage;
+    return fixture;
+  }
 
   it("records the first merge of the process and raises nothing", async () => {
-    const storage = fakeSessionStorage();
-    const fixture = scene({ stubs: { sessionStorage: storage } });
+    const fixture = pinned();
 
     assert.equal(await run(fixture), true);
     await run(fixture);
 
-    assert.equal(storage.store[PINNED], FIRST);
+    assert.equal(fixture.storage.store[PINNED], FIRST);
     assert.deepEqual(fixture.codes(), []);
   });
 
   it("raises unit_list_pinned when a later merge differs", async () => {
-    const storage = fakeSessionStorage({ [PINNED]: FIRST });
-    const fixture = scene({
-      stubs: { sessionStorage: storage },
+    const fixture = pinned(FIRST, {
       lists: { [MOD_LIST]: JSON.stringify({ units: ["/pa/units/c.json"] }) },
     });
 
@@ -1736,53 +1742,125 @@ describe("the pinned unit list", () => {
 
     assert.deepEqual(fixture.alarm("unit_list_pinned")[0].detail, {
       pinned: FIRST.length,
-      current: JSON.stringify({
-        units: ["/pa/units/a.json", "/pa/units/c.json"],
-      }).length,
+      current: "/pa/units/a.json\n/pa/units/c.json".length,
     });
-    assert.equal(storage.store[PINNED], FIRST);
+    assert.equal(fixture.storage.store[PINNED], FIRST);
   });
 
-  // A battle with no faction list left still reads the list spec:// pinned.
-  it("raises unit_list_pinned when nothing is merged after a merge", async () => {
-    const storage = fakeSessionStorage({ [PINNED]: FIRST });
-    const fixture = scene({
-      stubs: { sessionStorage: storage },
-      cmmOptions: { serverMods: [mod()], mergeUnitServerMods: false },
+  it("does not count the order of the units", async () => {
+    const fixture = pinned(FIRST, {
+      lists: {
+        [ROOT_LIST]: JSON.stringify({ units: ["/pa/units/b.json"] }),
+        [MOD_LIST]: JSON.stringify({ units: ["/pa/units/a.json"] }),
+      },
     });
 
     await run(fixture);
 
-    assert.equal(fixture.alarm("unit_list_pinned").length, 1);
+    assert.deepEqual(fixture.codes(), []);
   });
 
-  it("records an unmerged first battle as no merge", async () => {
-    const storage = fakeSessionStorage();
-    const fixture = scene({
-      stubs: { sessionStorage: storage },
+  // With the merge off, the referee reads whichever zip shadowed the path,
+  // which only the set decides.
+  it("keys an unmerged list on the mounted set", async () => {
+    const off = { serverMods: [mod()], mergeUnitServerMods: false };
+    const first = pinned(undefined, { cmmOptions: off });
+
+    await run(first);
+    const key = first.storage.store[PINNED];
+    assert.match(key, /^unmerged\n/);
+
+    const same = pinned(key, { cmmOptions: off });
+    await run(same);
+    assert.deepEqual(same.codes(), []);
+
+    const other = pinned(key, {
+      cmmOptions: Object.assign({}, off, {
+        serverMods: [mod({ identifier: "com.other", version: "2" })],
+      }),
+    });
+    await run(other);
+    assert.equal(other.alarm("unit_list_pinned").length, 1);
+  });
+
+  // A refused merge says nothing about the set, and unit_list_unmerged
+  // already reports it.
+  it("checks nothing when the merged list was not mounted", async () => {
+    const refused = pinned(FIRST, {
+      apiOptions: {
+        mountMemoryFiles: (files) =>
+          "/pa/units/unit_list.json" in files
+            ? rejected("refused")
+            : resolved(),
+      },
+    });
+    await run(refused);
+    assert.equal(refused.alarm("unit_list_pinned").length, 0);
+
+    const missing = pinned(undefined, {
       apiOptions: { mountMemoryFiles: false },
     });
-
-    await run(fixture);
-
-    assert.equal(storage.store[PINNED], "");
-    assert.equal(fixture.alarm("unit_list_pinned").length, 0);
+    await run(missing);
+    assert.equal(PINNED in missing.storage.store, false);
   });
 
   it("checks nothing on a root-only run", async () => {
-    const storage = fakeSessionStorage();
-    const fixture = scene({ stubs: { sessionStorage: storage } });
+    const fixture = pinned();
 
     await run(fixture, { rootOnly: true, remountContent: false });
 
-    assert.equal(PINNED in storage.store, false);
+    assert.equal(PINNED in fixture.storage.store, false);
   });
 
-  it("raises nothing when sessionStorage cannot be written", async () => {
+  it("logs and raises nothing when sessionStorage cannot be written", async () => {
     const storage = fakeSessionStorage({}, { setItemThrows: true });
     const fixture = scene({ stubs: { sessionStorage: storage } });
 
     assert.equal(await run(fixture), true);
     assert.equal(fixture.alarm("unit_list_pinned").length, 0);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] pinned unit list not checked"
+      ),
+      true
+    );
+  });
+
+  describe("a battle with no server mods", () => {
+    const none = { serverMods: [], installedStore: "resolved" };
+
+    it("records the base list", async () => {
+      const fixture = pinned(undefined, { cmmOptions: none });
+
+      await run(fixture, { battle: true });
+
+      assert.equal(fixture.storage.store[PINNED], "");
+    });
+
+    it("raises unit_list_pinned after a merge", async () => {
+      const fixture = pinned(FIRST, { cmmOptions: none });
+
+      await run(fixture, { battle: true });
+
+      assert.equal(fixture.alarm("unit_list_pinned").length, 1);
+    });
+
+    // connect_to_game's first run sees no mods before Community Mods has
+    // read its store, and a scene entry reads nothing through spec://.
+    it("records nothing before the store is read or outside a battle", async () => {
+      const early = pinned(FIRST, {
+        cmmOptions: { serverMods: [], installedStore: "pending" },
+      });
+      await run(early, { battle: true });
+      assert.deepEqual(early.codes(), []);
+
+      const entry = pinned(undefined, { cmmOptions: none });
+      await run(entry, { remountContent: false });
+      assert.equal(PINNED in entry.storage.store, false);
+
+      const unknown = pinned(undefined, { cmmOptions: { serverMods: [] } });
+      await run(unknown, { battle: true });
+      assert.equal(PINNED in unknown.storage.store, false);
+    });
   });
 });

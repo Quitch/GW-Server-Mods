@@ -168,13 +168,30 @@ removed from the set and the run repeated, `coui://` went from 687 units to 558 
 `spec://` stayed at 687, Bugs' 117 included; restoring Bugs brought `coui://` back to 687.
 So a faction enabled or disabled after the first battle mount of a process reaches the
 galaxy map but not the referee, and nothing a client mod can call clears the cache.
-`checkPinnedUnitList()` therefore keeps the payload of the first battle mount's merge in
-`sessionStorage`, which lasts as long as the cache, and raises `unit_list_pinned`,
-telling the player to restart PA, when a later battle mount merges anything else. A
-battle mount that merged nothing records an empty string, so a change in either direction
-alarms. It costs one string comparison per battle mount and no read. It assumes this
-mod's `verify()` is the process's first `spec://` read of the list; a skirmish or another
-mod that read it first would pin a list this check never sees.
+`checkPinnedUnitList()` therefore keeps a key for the list the first battle mount left
+for the referee in `sessionStorage`, which lasts as long as the cache, and raises
+`unit_list_pinned`, telling the player to restart PA, when a later battle mount leaves a
+different one. The key is the merged units, sorted, so the order Community Mods lists the
+mods in does not count. With Community Mods' merge turned off, the referee reads whichever
+zip shadowed the path, which only the mounted set decides, so the key is that set. A merge
+with no faction list to add leaves the base list, keyed as an empty string. A merged list
+that could not be mounted says nothing about the set and is not checked;
+`unit_list_unmerged` already reports it. It costs one sort and one string comparison per
+battle mount, and no read.
+
+A battle with no server mods never reaches the merge, yet the referee still pins the base
+list. The patched `model.fight` marks its run with `battle: true`, and a marked run with no
+mods records the empty key, so enabling a faction afterwards alarms. The mark is needed
+because an empty active list is not evidence on its own: `connect_to_game`'s first run sees
+none before Community Mods has read its store, and a scene-entry run reads nothing through
+`spec://`, so a record there would raise a false alarm after a later toggle. The run also
+records only once Community Mods' installed-mods store has resolved
+(`manifest.storeRead()`). A Fight whose run is shared with one already in flight loses the
+mark, which costs a missed alarm, never a false one.
+
+The check assumes this mod's `verify()`, or the referee in a battle with no server mods, is
+the process's first `spec://` read of the list; a skirmish or another mod that read it first
+would pin a list this check never sees.
 
 Community Mods generates a merged list of its own in `community-mods-server.zip`, but only
 when every mod's `unitList` had been populated by its asynchronous filesystem scan at the

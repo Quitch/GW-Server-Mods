@@ -101,6 +101,14 @@
     return available() || !!installed;
   }
 
+  // Community Mods' installed-mods store has been read, so an empty active
+  // list means none rather than not yet.
+  function storeRead() {
+    var ready = _.get(manager(), "installedMods.ready");
+
+    return !!ready && _.isFunction(ready.state) && ready.state() === "resolved";
+  }
+
   // The mount order Community Mods uses: priority descending.
   function fallbackServerMods() {
     return _.sortByOrder(
@@ -390,6 +398,7 @@
       return ns.jq(load());
     },
     listed: listed,
+    storeRead: storeRead,
     activeServerMods: activeServerMods,
     serverModInfo: serverModInfo,
     scenes: scenes,

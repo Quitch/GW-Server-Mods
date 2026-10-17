@@ -330,7 +330,7 @@
       mgr.mergeUnitServerMods() === false
     ) {
       ns.log("unit list merge disabled by Community Mods");
-      return Promise.resolve("");
+      return Promise.resolve("unmerged\n" + rootKey(mods));
     }
 
     // Every read is through coui://, never spec://: the engine caches a spec://
@@ -364,7 +364,7 @@
 
       if (!api.file || !_.isFunction(api.file.mountMemoryFiles)) {
         reportUnmerged(detail, "mountMemoryFiles unavailable");
-        return "";
+        return null;
       }
 
       return Promise.resolve(
@@ -374,12 +374,12 @@
           mergedUnitFile = { payload: payload, detail: detail };
           ns.log("merged unit list", detail);
 
-          return payload;
+          return merged.slice().sort().join("\n");
         },
         function (error) {
           reportUnmerged(detail, String(error));
 
-          return "";
+          return null;
         }
       );
     });
@@ -387,12 +387,17 @@
 
   // verify() is the first read of the referee's spec:// list, and spec:// keeps
   // that read for the whole process, so a later battle with another merge
-  // still gets the first one. sessionStorage lives as long. See design.md.
+  // still gets the first one. sessionStorage lives as long. A key that is not
+  // a string is a merge that failed, which says nothing about the set.
+  // See design.md.
   var PINNED_KEY = "gw_server_mods_pinned_unit_list";
 
-  function checkPinnedUnitList(payload) {
-    var current = _.isString(payload) ? payload : "";
+  function checkPinnedUnitList(current) {
     var pinned;
+
+    if (!_.isString(current)) {
+      return;
+    }
 
     try {
       pinned = sessionStorage.getItem(PINNED_KEY);
@@ -402,6 +407,7 @@
         return;
       }
     } catch (e) {
+      ns.log("pinned unit list not checked");
       return;
     }
 
@@ -583,6 +589,8 @@
   }
 
   function mountForBattle(mods, withContent, generation, timing) {
+    var mergedKey;
+
     report("!LOC:Mounting server mods");
 
     return timed(
@@ -606,13 +614,19 @@
           withContent
             ? timed(timing, "content", remountContent(generation))
             : null,
-          timed(timing, "merge", mergeUnitList(mods)),
+          timed(
+            timing,
+            "merge",
+            mergeUnitList(mods).then(function (key) {
+              mergedKey = key;
+            })
+          ),
           ns.manifest.detectClientRelevance(mods),
         ]);
       })
-      .then(function (results) {
+      .then(function () {
         reportUnmountableMods();
-        checkPinnedUnitList(results[1]);
+        checkPinnedUnitList(mergedKey);
 
         return timed(timing, "verify", verify(mods));
       })
@@ -724,6 +738,12 @@
       ns.manifest.rememberScenes(mods);
 
       if (!mods.length) {
+        // The referee reads the base list for a battle with none, but an empty
+        // list read before Community Mods has its store is not evidence.
+        if (!rootOnly && options && options.battle && ns.manifest.storeRead()) {
+          checkPinnedUnitList("");
+        }
+
         settle(true, [], timing);
 
         return true;
