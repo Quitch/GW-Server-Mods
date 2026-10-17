@@ -24,8 +24,8 @@
       // content over the root zips; without them nothing else would, and a
       // battle must never start with the models unregistered. See design.md.
       var options = ns.hooks.installed()
-        ? { remountContent: false }
-        : undefined;
+        ? { remountContent: false, battle: true }
+        : { battle: true };
 
       function fight() {
         return previous.apply(self, args);

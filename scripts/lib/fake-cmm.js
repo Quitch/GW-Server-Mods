@@ -35,6 +35,10 @@ function createFakeCmm(options) {
   if (opts.clientMods) {
     mgr.activeInstalledClientMods = () => opts.clientMods;
   }
+  // The db extender's jQuery Deferred, read through state().
+  if (opts.installedStore !== undefined) {
+    mgr.installedMods = { ready: { state: () => opts.installedStore } };
+  }
   if (opts.mergeUnitServerMods !== undefined) {
     mgr.mergeUnitServerMods = () => opts.mergeUnitServerMods;
   }

@@ -330,7 +330,7 @@
       mgr.mergeUnitServerMods() === false
     ) {
       ns.log("unit list merge disabled by Community Mods");
-      return Promise.resolve();
+      return Promise.resolve("unmerged\n" + rootKey(mods));
     }
 
     // Every read is through coui://, never spec://: the engine caches a spec://
@@ -352,33 +352,87 @@
     );
 
     return ns.settled(reads).then(function (lists) {
-      var modLists = _.filter(lists.slice(1), _.isArray);
-
-      if (!modLists.length) {
-        return undefined;
-      }
-
-      var merged = _.union.apply(_, [lists[0] || []].concat(modLists));
-      var detail = { units: merged.length, lists: modLists.length };
-      var payload = JSON.stringify({ units: merged });
-
-      if (!api.file || !_.isFunction(api.file.mountMemoryFiles)) {
-        reportUnmerged(detail, "mountMemoryFiles unavailable");
-        return undefined;
-      }
-
-      return Promise.resolve(
-        api.file.mountMemoryFiles({ "/pa/units/unit_list.json": payload })
-      ).then(
-        function () {
-          mergedUnitFile = { payload: payload, detail: detail };
-          ns.log("merged unit list", detail);
-        },
-        function (error) {
-          reportUnmerged(detail, String(error));
-        }
-      );
+      return mountMergedList(lists[0], _.filter(lists.slice(1), _.isArray));
     });
+  }
+
+  // Resolves with the key checkPinnedUnitList compares: the merged units
+  // sorted, "" when no mod adds a list, or null when the merge did not mount.
+  function mountMergedList(base, modLists) {
+    if (!modLists.length) {
+      return Promise.resolve("");
+    }
+
+    var merged = _.union.apply(_, [base || []].concat(modLists));
+    var detail = { units: merged.length, lists: modLists.length };
+    var payload = JSON.stringify({ units: merged });
+
+    if (!api.file || !_.isFunction(api.file.mountMemoryFiles)) {
+      reportUnmerged(detail, "mountMemoryFiles unavailable");
+      return Promise.resolve(null);
+    }
+
+    return Promise.resolve(
+      api.file.mountMemoryFiles({ "/pa/units/unit_list.json": payload })
+    ).then(
+      function () {
+        mergedUnitFile = { payload: payload, detail: detail };
+        ns.log("merged unit list", detail);
+
+        return merged.slice().sort().join("\n");
+      },
+      function (error) {
+        reportUnmerged(detail, String(error));
+
+        return null;
+      }
+    );
+  }
+
+  // The key of this page's last battle merge. run() never overlaps two runs,
+  // so the key read after a merge is that run's.
+  var mergeKey;
+
+  function mergeForBattle(mods) {
+    mergeKey = undefined;
+
+    return mergeUnitList(mods).then(function (key) {
+      mergeKey = key;
+    });
+  }
+
+  // verify() is the first read of the referee's spec:// list, and spec:// keeps
+  // that read for the whole process, so a later battle with another merge
+  // still gets the first one. sessionStorage lives as long. A key that is not
+  // a string is a merge that failed, which says nothing about the set.
+  // See design.md.
+  var PINNED_KEY = "gw_server_mods_pinned_unit_list";
+
+  function checkPinnedUnitList(current) {
+    var pinned;
+
+    if (!_.isString(current)) {
+      return;
+    }
+
+    try {
+      pinned = sessionStorage.getItem(PINNED_KEY);
+
+      if (pinned === null) {
+        sessionStorage.setItem(PINNED_KEY, current);
+        return;
+      }
+    } catch (e) {
+      ns.log("pinned unit list not checked " + ((e && e.message) || e));
+      return;
+    }
+
+    if (pinned !== current) {
+      ns.alarm("unit_list_pinned", {
+        pinned: pinned.length,
+        current: current.length,
+      });
+    }
   }
 
   // Called by mountRootOnly after its zip mounts, which re-shadow the memory
@@ -574,12 +628,13 @@
           withContent
             ? timed(timing, "content", remountContent(generation))
             : null,
-          timed(timing, "merge", mergeUnitList(mods)),
+          timed(timing, "merge", mergeForBattle(mods)),
           ns.manifest.detectClientRelevance(mods),
         ]);
       })
       .then(function () {
         reportUnmountableMods();
+        checkPinnedUnitList(mergeKey);
 
         return timed(timing, "verify", verify(mods));
       })
@@ -669,7 +724,7 @@
   }
 
   // Repeatable: Galactic War tears the mounts down more than once per battle.
-  // remountContent is false only for a running battle, where it blanks the scene.
+  // remountContent: false skips the content remount, which blanks the scene.
   function runOnce(options) {
     var withContent = !options || options.remountContent !== false;
     var rootOnly = !!(options && options.rootOnly);
@@ -691,6 +746,12 @@
       ns.manifest.rememberScenes(mods);
 
       if (!mods.length) {
+        // The referee reads the base list for a battle with none, but an empty
+        // list read before Community Mods has its store is not evidence.
+        if (!rootOnly && options && options.battle && ns.manifest.storeRead()) {
+          checkPinnedUnitList("");
+        }
+
         settle(true, [], timing);
 
         return true;
