@@ -404,8 +404,15 @@ same after mounting client zips. Without it every spec resolves and every unit i
 invisible.
 
 It must **not** run during a battle: it blanks the scene, and the models are already
-loaded by then, so `live_game` holds the mounts with `remountContent: false`. Zip mounts
-themselves survive a remount - that was checked directly, before and after.
+loaded by then. Zip mounts themselves survive a remount - that was checked directly,
+before and after.
+
+Nothing holds the mounts in `live_game` or `gw_lobby`. Neither scene has Community Mods,
+so a battle run there stops before it mounts anything, and a root-only run would read
+the installed-mods store, whose set can differ from the one the battle mounted and would
+re-mount every zip mid-battle with `coui:` reads blocked. No stock code tears the mounts
+down in either scene - `gw_lobby.js` avoids `unmountAllMemoryFiles` on purpose - so the
+mounts made in `connect_to_game` last the battle.
 
 Community Mods rebuilds it too, inside every teardown: `remountClientMods()` unmounts,
 mounts its client zips and calls `api.content.remount()` - before this mod's run has put
@@ -418,7 +425,7 @@ calls the real remount, and records the generation as registered
 current and its content registered, and skips both. This mod's own `remountContent()`
 also goes through the accessor; the check finds the mounts current and the call is just
 the real remount plus the record. The accessor exists only in the scenes that install the
-hooks - `gw_play`, `connect_to_game`, `live_game`, `gw_lobby` - so `start` and
+hooks - `gw_play` and `connect_to_game` - so `start`, the battle scenes and
 `community_mods` are untouched. `CommunityModsManager.mountClientMods` and `mountZipMods`
 are not wrapped instead: both are manager internals rather than the engine seam this mod
 already documents taking, and `mountClientMods` also runs in `start`.
@@ -427,7 +434,7 @@ Both teardown wrappers call `mount.invalidate()` before the teardown itself runs
 generation has moved before anything is dropped. The nested wrappers on one teardown bump
 it twice; nothing mounts between the two bumps, so that is harmless.
 
-`gw_play` passes the same option, for the neighbouring reason: the galaxy map has no
+`gw_play` passes `remountContent: false` on scene entry: the galaxy map has no
 renderer content to register. Its commander portraits, tech card art and unit icons are
 read through `coui:`, which the root mounts serve on their own, so a remount there buys
 nothing and costs the several seconds of black screen between leaving `gw_start` and the
@@ -448,11 +455,9 @@ so two runs never overlap their mounts. A root-only run in flight is the other e
 it merged no unit list and made no `/server_mods/<id>/` mounts, so a battle caller queues
 behind it the same way, while a root-only caller may still share a battle run, which does
 everything it needs and more. `gw_play/launch.js` therefore installs the hooks
-with **no** options: an unmount mid-launch must still restore the catalogue, unlike
-`live_game/remount.js`, which installs with `remountContent: false` because there the
-scene is already running. A run that would remount but finds the content already
-registered for its generation skips it silently, and does not report the "Registering"
-stage to the launch panel either.
+with **no** options: an unmount mid-launch must still restore the catalogue. A run that
+would remount but finds the content already registered for its generation skips it
+silently, and does not report the "Registering" stage to the launch panel either.
 
 ## Launch progress
 
@@ -464,7 +469,7 @@ remount. GWO owns the screen, so nothing here shows or hides it.
 Two facts make that safe without a load-order contract in the code:
 
 - `stage()` is a no-op outside a launch, so the scene-entry mount in `gw_play/launch.js`
-  and the mounts in `connect_to_game` and `live_game` report nothing. The scene-entry
+  and the mounts in `connect_to_game` report nothing. The scene-entry
   mount performs no content remount, so it has nothing the panel would want to label
   anyway.
 - The object is resolved at call time. GWO carries `priority: 200` and this mod the
@@ -542,7 +547,7 @@ as its scene loads, before Community Mods has read its store, and that run sees 
 every battle scene would load nothing. Should the list be missing anyway, `serverUi.load`
 reads the store itself and loads late, after the scene has bound.
 
-Where it runs: `live_game` (`remount.js`, which also loads the `shared_build` share,
+Where it runs: `live_game` (`ui.js`, which also loads the `shared_build` share,
 because `build.js` consumed that list before any scene script ran),
 `live_game_build_bar` and `live_game_players`. The main menu is not covered: a server
 mod's `start` scripts are not loaded in a skirmish either.

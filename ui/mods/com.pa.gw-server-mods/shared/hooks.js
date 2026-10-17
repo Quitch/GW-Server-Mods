@@ -8,9 +8,8 @@
 
   var MARK = "__gwServerModsWrapped";
 
-  // The mount options the scene installed with, live_game's
-  // remountContent: false in particular. Wrappers fire long after install,
-  // so they must inherit these rather than default.
+  // The mount options the scene installed with. Wrappers fire long after
+  // install, so they must inherit these rather than default.
   var runOptions;
   var seams = { unmount: false, remount: false, content: false };
 
