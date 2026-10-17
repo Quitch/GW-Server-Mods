@@ -101,7 +101,16 @@
     return available() || !!installed;
   }
 
-  // The mount order Community Mods uses: priority descending.
+  // Community Mods' installed-mods store has been read, so an empty active
+  // list means none rather than not yet.
+  function storeRead() {
+    var ready = _.get(manager(), "installedMods.ready");
+
+    return !!ready && _.isFunction(ready.state) && ready.state() === "resolved";
+  }
+
+  // The order Community Mods really mounts in: its "desc" sorts ascending
+  // under lodash 3.9.3.
   function fallbackServerMods() {
     return _.sortByOrder(
       _.filter(installed, "context", "server"),
@@ -390,6 +399,7 @@
       return ns.jq(load());
     },
     listed: listed,
+    storeRead: storeRead,
     activeServerMods: activeServerMods,
     serverModInfo: serverModInfo,
     scenes: scenes,

@@ -4,9 +4,9 @@
   "display_name": "Galactic War Server Mods",
   "description": "Mounts your active server mods for Galactic War battles, which the base game skips. In co-op the host is the source of truth: a viewer missing a server mod the host is running is told which one and why, before the battle starts.",
   "author": "Quitch",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "build": "124683",
-  "date": "2026-10-03",
+  "date": "2026-10-17",
   "signature": " ",
   "forum": "https://steamcommunity.com/app/386070/discussions/0/587310164511795299/",
   "category": ["titans", "classic", "gw", "fix", "gameplay"],
@@ -39,15 +39,6 @@
       "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js"
     ],
-    "gw_lobby": [
-      "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/hooks.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js",
-      "coui://ui/mods/com.pa.gw-server-mods/gw_lobby/keepalive.js"
-    ],
     "gw_play": [
       "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
@@ -61,11 +52,9 @@
       "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/hooks.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
-      "coui://ui/mods/com.pa.gw-server-mods/live_game/remount.js"
+      "coui://ui/mods/com.pa.gw-server-mods/live_game/ui.js"
     ],
     "shared_build": [
       "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
