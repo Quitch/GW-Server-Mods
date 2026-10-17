@@ -8,7 +8,11 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { sharedScene } = require("../scripts/lib/shared-scene.js");
-const { Deferred, resolved } = require("../scripts/lib/fake-jquery.js");
+const {
+  Deferred,
+  rejected,
+  resolved,
+} = require("../scripts/lib/fake-jquery.js");
 const { mod } = require("../scripts/lib/fake-cmm.js");
 const { flush, loadFile } = require("../scripts/lib/scene-loader.js");
 
@@ -106,7 +110,7 @@ describe("launch installation", () => {
 });
 
 describe("the patched fight", () => {
-  it("mounts, then fights with the same this and arguments", () => {
+  it("mounts, then fights with the same this and arguments", async () => {
     const fixture = scene();
     const runs = [];
     fixture.ns.mount.run = (options) => {
@@ -116,9 +120,10 @@ describe("the patched fight", () => {
     const self = {};
     let outcome;
 
-    fixture.model.fight.call(self, 1, 2).then((value) => {
+    fixture.model.fight.call(self, 1, 2).done((value) => {
       outcome = value;
     });
+    await flush();
 
     // Every seam is taken here, so the referee's teardown registers the
     // content and the run before the fight need not.
@@ -140,15 +145,46 @@ describe("the patched fight", () => {
     assert.deepEqual(runs, [undefined]);
   });
 
-  it("does not fight until the mount settles", () => {
+  it("does not fight until the mount settles", async () => {
     const pending = Deferred();
     const fixture = scene();
     fixture.ns.mount.run = () => pending.promise();
 
     fixture.model.fight();
+    await flush();
     assert.equal(fixture.fights.length, 0);
 
     pending.resolve(true);
+    await flush();
     assert.equal(fixture.fights.length, 1);
+  });
+
+  it("fights after a mount that rejected, and logs why", async () => {
+    const fixture = scene();
+    fixture.ns.mount.run = () => rejected(new Error("mountServerMods threw"));
+    let outcome;
+    let failed = false;
+
+    fixture.model
+      .fight()
+      .done((value) => {
+        outcome = value;
+      })
+      .fail(() => {
+        failed = true;
+      });
+    await flush();
+
+    assert.equal(fixture.fights.length, 1);
+    assert.equal(outcome, "fought");
+    assert.equal(failed, false);
+    assert.equal(
+      fixture.console.lines.log.some((line) =>
+        line.startsWith(
+          "[GW-SM] mount failed before the battle Error: mountServerMods threw"
+        )
+      ),
+      true
+    );
   });
 });

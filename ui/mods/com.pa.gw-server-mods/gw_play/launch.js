@@ -27,9 +27,23 @@
         ? { remountContent: false }
         : undefined;
 
-      return ns.mount.run(options).then(function () {
+      function fight() {
         return previous.apply(self, args);
-      });
+      }
+
+      // A mount that failed must not cost the battle. The chain starts native,
+      // where a failure handler's value resolves it - in jQuery 2 it rejects -
+      // and ends jQuery, the shape this returned before.
+      return ns.jq(
+        Promise.resolve(ns.mount.run(options)).then(fight, function (error) {
+          ns.log(
+            "mount failed before the battle " +
+              ((error && (error.stack || error.message)) || error)
+          );
+
+          return fight();
+        })
+      );
     };
 
     model[name][MARK] = true;
