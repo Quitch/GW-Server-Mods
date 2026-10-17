@@ -355,7 +355,7 @@
       var modLists = _.filter(lists.slice(1), _.isArray);
 
       if (!modLists.length) {
-        return "";
+        return Promise.resolve("");
       }
 
       var merged = _.union.apply(_, [lists[0] || []].concat(modLists));
@@ -364,7 +364,7 @@
 
       if (!api.file || !_.isFunction(api.file.mountMemoryFiles)) {
         reportUnmerged(detail, "mountMemoryFiles unavailable");
-        return null;
+        return Promise.resolve(null);
       }
 
       return Promise.resolve(
