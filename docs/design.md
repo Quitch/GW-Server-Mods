@@ -163,6 +163,19 @@ cache-busting query, which `spec://` rejects), and nothing in this mod touches
 `spec://pa/units/unit_list.json` until the merged file is in place; `verify()` probes it only
 afterwards. A `spec://` read taken earlier would pin the unmerged list for the referee.
 
+The same cache pins the first merge. Measured in `gw_play` with 11 server mods: with Bugs
+removed from the set and the run repeated, `coui://` went from 687 units to 558 while
+`spec://` stayed at 687, Bugs' 117 included; restoring Bugs brought `coui://` back to 687.
+So a faction enabled or disabled after the first battle mount of a process reaches the
+galaxy map but not the referee, and nothing a client mod can call clears the cache.
+`checkPinnedUnitList()` therefore keeps the payload of the first battle mount's merge in
+`sessionStorage`, which lasts as long as the cache, and raises `unit_list_pinned`,
+telling the player to restart PA, when a later battle mount merges anything else. A
+battle mount that merged nothing records an empty string, so a change in either direction
+alarms. It costs one string comparison per battle mount and no read. It assumes this
+mod's `verify()` is the process's first `spec://` read of the list; a skirmish or another
+mod that read it first would pin a list this check never sees.
+
 Community Mods generates a merged list of its own in `community-mods-server.zip`, but only
 when every mod's `unitList` had been populated by its asynchronous filesystem scan at the
 moment the zip was regenerated; a copy without any list was observed. It is not used as a
@@ -346,7 +359,9 @@ zip paths and versions its root mounts covered. A later run under the same gener
 skips the root mounts, and a root-only run that skipped them also skips the merged-list restore,
 because nothing re-shadowed the memory file. The restore is therefore reached only after a
 teardown. A path set that changed - a faction toggled in Community Mods - mounts again whatever
-the generation, which is what keeps the 575 -> disable -> 336 -> re-enable -> 575 walk true.
+the generation, which is what keeps the 575 -> disable -> 336 -> re-enable -> 575 walk true
+through `coui://`. Through `spec://`, which the referee reads, the first list stays (see
+"More than one faction").
 
 The content catalogue follows the same rule: `api.content.remount()` is recorded against the
 generation whose root mounts it covered, and a run whose generation is already registered skips
@@ -692,4 +707,5 @@ faked; whether the engine behaves as faked is verified by loading the game.
 10. A solo launch shows one `Applying Unit Spec Tag` per referee teardown, the run after each
     reads `"root":0` and `"content":0-5` in its `mounted server mods` line, and
     `coui://pa/units/unit_list.json` holds the merged count before and after; then disable a
-    faction in Community Mods and re-enable it, and the count must drop and come back.
+    faction in Community Mods and re-enable it, and the count must drop and come back;
+    the battle mount after the change raises `unit_list_pinned`.

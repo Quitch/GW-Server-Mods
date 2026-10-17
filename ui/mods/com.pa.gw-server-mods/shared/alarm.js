@@ -34,6 +34,8 @@
       "!LOC:Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.",
     start_unavailable:
       "!LOC:GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.",
+    unit_list_pinned:
+      "!LOC:Your server mods changed after PA started. Galactic War battles keep the unit list PA read first, so units may be missing. Restart PA, then start the battle.",
     unit_list_unmerged:
       "!LOC:Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.",
     zip_missing:

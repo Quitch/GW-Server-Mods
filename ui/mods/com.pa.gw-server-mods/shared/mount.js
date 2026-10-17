@@ -330,7 +330,7 @@
       mgr.mergeUnitServerMods() === false
     ) {
       ns.log("unit list merge disabled by Community Mods");
-      return Promise.resolve();
+      return Promise.resolve("");
     }
 
     // Every read is through coui://, never spec://: the engine caches a spec://
@@ -355,7 +355,7 @@
       var modLists = _.filter(lists.slice(1), _.isArray);
 
       if (!modLists.length) {
-        return undefined;
+        return "";
       }
 
       var merged = _.union.apply(_, [lists[0] || []].concat(modLists));
@@ -364,7 +364,7 @@
 
       if (!api.file || !_.isFunction(api.file.mountMemoryFiles)) {
         reportUnmerged(detail, "mountMemoryFiles unavailable");
-        return undefined;
+        return "";
       }
 
       return Promise.resolve(
@@ -373,12 +373,44 @@
         function () {
           mergedUnitFile = { payload: payload, detail: detail };
           ns.log("merged unit list", detail);
+
+          return payload;
         },
         function (error) {
           reportUnmerged(detail, String(error));
+
+          return "";
         }
       );
     });
+  }
+
+  // verify() is the first read of the referee's spec:// list, and spec:// keeps
+  // that read for the whole process, so a later battle with another merge
+  // still gets the first one. sessionStorage lives as long. See design.md.
+  var PINNED_KEY = "gw_server_mods_pinned_unit_list";
+
+  function checkPinnedUnitList(payload) {
+    var current = _.isString(payload) ? payload : "";
+    var pinned;
+
+    try {
+      pinned = sessionStorage.getItem(PINNED_KEY);
+
+      if (pinned === null) {
+        sessionStorage.setItem(PINNED_KEY, current);
+        return;
+      }
+    } catch (e) {
+      return;
+    }
+
+    if (pinned !== current) {
+      ns.alarm("unit_list_pinned", {
+        pinned: pinned.length,
+        current: current.length,
+      });
+    }
   }
 
   // Called by mountRootOnly after its zip mounts, which re-shadow the memory
@@ -578,8 +610,9 @@
           ns.manifest.detectClientRelevance(mods),
         ]);
       })
-      .then(function () {
+      .then(function (results) {
         reportUnmountableMods();
+        checkPinnedUnitList(results[1]);
 
         return timed(timing, "verify", verify(mods));
       })

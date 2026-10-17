@@ -1705,3 +1705,84 @@ describe("mount.run afterModuleLoads", () => {
     assert.equal(timers.pending(), 0);
   });
 });
+
+// spec:// keeps the first read of the referee's list for the whole process, so
+// a battle whose merge differs from the first one gets the old list.
+describe("the pinned unit list", () => {
+  const PINNED = "gw_server_mods_pinned_unit_list";
+  const FIRST = JSON.stringify({
+    units: ["/pa/units/a.json", "/pa/units/b.json"],
+  });
+
+  it("records the first merge of the process and raises nothing", async () => {
+    const storage = fakeSessionStorage();
+    const fixture = scene({ stubs: { sessionStorage: storage } });
+
+    assert.equal(await run(fixture), true);
+    await run(fixture);
+
+    assert.equal(storage.store[PINNED], FIRST);
+    assert.deepEqual(fixture.codes(), []);
+  });
+
+  it("raises unit_list_pinned when a later merge differs", async () => {
+    const storage = fakeSessionStorage({ [PINNED]: FIRST });
+    const fixture = scene({
+      stubs: { sessionStorage: storage },
+      lists: { [MOD_LIST]: JSON.stringify({ units: ["/pa/units/c.json"] }) },
+    });
+
+    await run(fixture);
+
+    assert.deepEqual(fixture.alarm("unit_list_pinned")[0].detail, {
+      pinned: FIRST.length,
+      current: JSON.stringify({
+        units: ["/pa/units/a.json", "/pa/units/c.json"],
+      }).length,
+    });
+    assert.equal(storage.store[PINNED], FIRST);
+  });
+
+  // A battle with no faction list left still reads the list spec:// pinned.
+  it("raises unit_list_pinned when nothing is merged after a merge", async () => {
+    const storage = fakeSessionStorage({ [PINNED]: FIRST });
+    const fixture = scene({
+      stubs: { sessionStorage: storage },
+      cmmOptions: { serverMods: [mod()], mergeUnitServerMods: false },
+    });
+
+    await run(fixture);
+
+    assert.equal(fixture.alarm("unit_list_pinned").length, 1);
+  });
+
+  it("records an unmerged first battle as no merge", async () => {
+    const storage = fakeSessionStorage();
+    const fixture = scene({
+      stubs: { sessionStorage: storage },
+      apiOptions: { mountMemoryFiles: false },
+    });
+
+    await run(fixture);
+
+    assert.equal(storage.store[PINNED], "");
+    assert.equal(fixture.alarm("unit_list_pinned").length, 0);
+  });
+
+  it("checks nothing on a root-only run", async () => {
+    const storage = fakeSessionStorage();
+    const fixture = scene({ stubs: { sessionStorage: storage } });
+
+    await run(fixture, { rootOnly: true, remountContent: false });
+
+    assert.equal(PINNED in storage.store, false);
+  });
+
+  it("raises nothing when sessionStorage cannot be written", async () => {
+    const storage = fakeSessionStorage({}, { setItemThrows: true });
+    const fixture = scene({ stubs: { sessionStorage: storage } });
+
+    assert.equal(await run(fixture), true);
+    assert.equal(fixture.alarm("unit_list_pinned").length, 0);
+  });
+});
