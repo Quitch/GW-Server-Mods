@@ -52,7 +52,6 @@
       "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/alarm.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/manifest.js",
-      "coui://ui/mods/com.pa.gw-server-mods/shared/mount.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/capability.js",
       "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
       "coui://ui/mods/com.pa.gw-server-mods/live_game/ui.js"

@@ -669,7 +669,7 @@
   }
 
   // Repeatable: Galactic War tears the mounts down more than once per battle.
-  // remountContent is false only for a running battle, where it blanks the scene.
+  // remountContent: false skips the content remount, which blanks the scene.
   function runOnce(options) {
     var withContent = !options || options.remountContent !== false;
     var rootOnly = !!(options && options.rootOnly);

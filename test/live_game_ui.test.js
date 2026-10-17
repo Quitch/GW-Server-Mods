@@ -34,7 +34,7 @@ describe("live_game server mod UI", () => {
     await flush();
 
     assert.deepEqual(loads, [[BUILD], [LIVE]]);
-    assert.equal(fixture.ctx.GwServerMods.mount.sequence(), 0);
+    assert.equal(fixture.ctx.GwServerMods.mount, undefined);
     assert.equal(fixture.api.calls.zipMount.length, 0);
     assert.equal(fixture.api.file.unmountAllMemoryFiles, unmount);
     assert.equal(fixture.ctx.GwServerMods.hooks, undefined);

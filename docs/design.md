@@ -434,7 +434,7 @@ Both teardown wrappers call `mount.invalidate()` before the teardown itself runs
 generation has moved before anything is dropped. The nested wrappers on one teardown bump
 it twice; nothing mounts between the two bumps, so that is harmless.
 
-`gw_play` passes the same option, for the neighbouring reason: the galaxy map has no
+`gw_play` passes `remountContent: false` on scene entry: the galaxy map has no
 renderer content to register. Its commander portraits, tech card art and unit icons are
 read through `coui:`, which the root mounts serve on their own, so a remount there buys
 nothing and costs the several seconds of black screen between leaving `gw_start` and the
@@ -455,9 +455,9 @@ so two runs never overlap their mounts. A root-only run in flight is the other e
 it merged no unit list and made no `/server_mods/<id>/` mounts, so a battle caller queues
 behind it the same way, while a root-only caller may still share a battle run, which does
 everything it needs and more. `gw_play/launch.js` therefore installs the hooks
-with **no** options: an unmount mid-launch must still restore the catalogue. A run that would remount but finds the content already
-registered for its generation skips it silently, and does not report the "Registering"
-stage to the launch panel either.
+with **no** options: an unmount mid-launch must still restore the catalogue. A run that
+would remount but finds the content already registered for its generation skips it
+silently, and does not report the "Registering" stage to the launch panel either.
 
 ## Launch progress
 
