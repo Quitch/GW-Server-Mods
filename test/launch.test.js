@@ -159,6 +159,29 @@ describe("the patched fight", () => {
     assert.equal(fixture.fights.length, 1);
   });
 
+  // Without the seams the run would have registered the content, so this is
+  // the launch that most needs to go ahead rather than wait on a dead run.
+  it("fights after a mount that rejected without the seams", async () => {
+    const fixture = scene({ apiOptions: { remount: false } });
+    const runs = [];
+    fixture.ns.mount.run = (options) => {
+      runs.push(options);
+      return rejected({ code: "engine" });
+    };
+
+    fixture.model.fight();
+    await flush();
+
+    assert.deepEqual(runs, [undefined]);
+    assert.equal(fixture.fights.length, 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        '[GW-SM] mount failed before the battle {"code":"engine"}'
+      ),
+      true
+    );
+  });
+
   it("fights after a mount that rejected, and logs why", async () => {
     const fixture = scene();
     fixture.ns.mount.run = () => rejected(new Error("mountServerMods threw"));

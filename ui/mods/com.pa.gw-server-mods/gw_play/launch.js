@@ -38,7 +38,8 @@
         Promise.resolve(ns.mount.run(options)).then(fight, function (error) {
           ns.log(
             "mount failed before the battle " +
-              ((error && (error.stack || error.message)) || error)
+              ((error && (error.stack || error.message)) ||
+                JSON.stringify(error))
           );
 
           return fight();
