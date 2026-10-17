@@ -352,36 +352,52 @@
     );
 
     return ns.settled(reads).then(function (lists) {
-      var modLists = _.filter(lists.slice(1), _.isArray);
+      return mountMergedList(lists[0], _.filter(lists.slice(1), _.isArray));
+    });
+  }
 
-      if (!modLists.length) {
-        return Promise.resolve("");
+  // Resolves with the key checkPinnedUnitList compares: the merged units
+  // sorted, "" when no mod adds a list, or null when the merge did not mount.
+  function mountMergedList(base, modLists) {
+    if (!modLists.length) {
+      return Promise.resolve("");
+    }
+
+    var merged = _.union.apply(_, [base || []].concat(modLists));
+    var detail = { units: merged.length, lists: modLists.length };
+    var payload = JSON.stringify({ units: merged });
+
+    if (!api.file || !_.isFunction(api.file.mountMemoryFiles)) {
+      reportUnmerged(detail, "mountMemoryFiles unavailable");
+      return Promise.resolve(null);
+    }
+
+    return Promise.resolve(
+      api.file.mountMemoryFiles({ "/pa/units/unit_list.json": payload })
+    ).then(
+      function () {
+        mergedUnitFile = { payload: payload, detail: detail };
+        ns.log("merged unit list", detail);
+
+        return merged.slice().sort().join("\n");
+      },
+      function (error) {
+        reportUnmerged(detail, String(error));
+
+        return null;
       }
+    );
+  }
 
-      var merged = _.union.apply(_, [lists[0] || []].concat(modLists));
-      var detail = { units: merged.length, lists: modLists.length };
-      var payload = JSON.stringify({ units: merged });
+  // The key of this page's last battle merge. run() never overlaps two runs,
+  // so the key read after a merge is that run's.
+  var mergeKey;
 
-      if (!api.file || !_.isFunction(api.file.mountMemoryFiles)) {
-        reportUnmerged(detail, "mountMemoryFiles unavailable");
-        return Promise.resolve(null);
-      }
+  function mergeForBattle(mods) {
+    mergeKey = undefined;
 
-      return Promise.resolve(
-        api.file.mountMemoryFiles({ "/pa/units/unit_list.json": payload })
-      ).then(
-        function () {
-          mergedUnitFile = { payload: payload, detail: detail };
-          ns.log("merged unit list", detail);
-
-          return merged.slice().sort().join("\n");
-        },
-        function (error) {
-          reportUnmerged(detail, String(error));
-
-          return null;
-        }
-      );
+    return mergeUnitList(mods).then(function (key) {
+      mergeKey = key;
     });
   }
 
@@ -407,7 +423,7 @@
         return;
       }
     } catch (e) {
-      ns.log("pinned unit list not checked");
+      ns.log("pinned unit list not checked " + ((e && e.message) || e));
       return;
     }
 
@@ -589,8 +605,6 @@
   }
 
   function mountForBattle(mods, withContent, generation, timing) {
-    var mergedKey;
-
     report("!LOC:Mounting server mods");
 
     return timed(
@@ -614,19 +628,13 @@
           withContent
             ? timed(timing, "content", remountContent(generation))
             : null,
-          timed(
-            timing,
-            "merge",
-            mergeUnitList(mods).then(function (key) {
-              mergedKey = key;
-            })
-          ),
+          timed(timing, "merge", mergeForBattle(mods)),
           ns.manifest.detectClientRelevance(mods),
         ]);
       })
       .then(function () {
         reportUnmountableMods();
-        checkPinnedUnitList(mergedKey);
+        checkPinnedUnitList(mergeKey);
 
         return timed(timing, "verify", verify(mods));
       })

@@ -1820,7 +1820,7 @@ describe("the pinned unit list", () => {
     assert.equal(fixture.alarm("unit_list_pinned").length, 0);
     assert.equal(
       fixture.console.lines.log.includes(
-        "[GW-SM] pinned unit list not checked"
+        "[GW-SM] pinned unit list not checked QuotaExceededError"
       ),
       true
     );
