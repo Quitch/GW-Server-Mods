@@ -51,6 +51,24 @@ function scene(options) {
   return fixture;
 }
 
+// The ko that manifest.load reads Community Mods' installed-mods store through,
+// holding one enabled server mod with a live_game script.
+function storeKo() {
+  const records = [
+    mod({ context: "server", enabled: true, scenes: { live_game: [A] } }),
+  ];
+  return {
+    observableArray: () => {
+      const store = () => records;
+      store.extend = () => {
+        store.ready = resolved(records);
+        return store;
+      };
+      return store;
+    },
+  };
+}
+
 describe("serverUi.load", () => {
   it("loads each scene's scripts once, in mod order, skipping empty entries", () => {
     const fixture = scene();
@@ -124,19 +142,7 @@ describe("serverUi.load", () => {
   });
 
   it("reads the store and loads late when nothing is listed or persisted", async () => {
-    const records = [
-      mod({ context: "server", enabled: true, scenes: { live_game: [A] } }),
-    ];
-    const ko = {
-      observableArray: () => {
-        const store = () => records;
-        store.extend = () => {
-          store.ready = resolved(records);
-          return store;
-        };
-        return store;
-      },
-    };
+    const ko = storeKo();
     const fixture = scene({
       cmm: null,
       stubs: { ko, localStorage: { installedModsDB: "1" } },
@@ -153,19 +159,7 @@ describe("serverUi.load", () => {
   // This client's store names its own active server mods, which a battle
   // hosted elsewhere need not run.
   it("loads nothing outside a Galactic War battle, from a list or the store", async () => {
-    const records = [
-      mod({ context: "server", enabled: true, scenes: { live_game: [A] } }),
-    ];
-    const ko = {
-      observableArray: () => {
-        const store = () => records;
-        store.extend = () => {
-          store.ready = resolved(records);
-          return store;
-        };
-        return store;
-      },
-    };
+    const ko = storeKo();
     const listed = scene({ notGw: true });
     const stored = scene({
       cmm: null,
