@@ -584,11 +584,14 @@ describe("manifest.scenes", () => {
       }),
     ];
 
+    const viewer = () =>
+      fakeSessionStorage({ gw_campaign_role: JSON.stringify("viewer") });
+
     it("keeps the mods the host published, and Galactic War mods", () => {
       const storage = fakeSessionStorage({ [HOST]: JSON.stringify(["com.a"]) });
       const fixture = scene({
         cmmOptions: { serverMods: mods() },
-        stubs: { localStorage: storage },
+        stubs: { localStorage: storage, sessionStorage: viewer() },
       });
 
       fixture.ns.manifest.rememberScenes(
@@ -599,6 +602,36 @@ describe("manifest.scenes", () => {
         live_game: [A, C],
       });
       assert.deepEqual(fixture.ns.manifest.scenes("live_game"), [A, C]);
+    });
+
+    // A host list left from an earlier co-op session must not filter a solo
+    // or hosted war.
+    it("filters nothing once this client is no longer a viewer", () => {
+      for (const role of ["solo", "host", null]) {
+        const storage = fakeSessionStorage({
+          [HOST]: JSON.stringify(["com.a"]),
+        });
+        const fixture = scene({
+          cmmOptions: { serverMods: mods() },
+          stubs: {
+            localStorage: storage,
+            sessionStorage: fakeSessionStorage(
+              role ? { gw_campaign_role: JSON.stringify(role) } : {}
+            ),
+          },
+        });
+
+        fixture.ns.manifest.rememberScenes(
+          fixture.ns.manifest.activeServerMods()
+        );
+
+        assert.deepEqual(
+          JSON.parse(storage.store.gw_server_mods_scenes),
+          { live_game: [A, B, C] },
+          String(role)
+        );
+        assert.deepEqual(fixture.ns.manifest.scenes("live_game"), [A, B, C]);
+      }
     });
 
     it("writes an empty list when the host runs none of them", () => {
@@ -630,12 +663,26 @@ describe("manifest.scenes", () => {
       assert.deepEqual(JSON.parse(storage.store[HOST]), ["com.a"]);
     });
 
-    it("filters nothing on a host list it cannot read, and logs one it cannot store", () => {
+    it("filters nothing on a host list or role it cannot read, and logs a list it cannot store", () => {
       const garbled = scene({
         cmmOptions: { serverMods: mods() },
-        stubs: { localStorage: fakeSessionStorage({ [HOST]: "{" }) },
+        stubs: {
+          localStorage: fakeSessionStorage({ [HOST]: "{" }),
+          sessionStorage: viewer(),
+        },
       });
       assert.deepEqual(garbled.ns.manifest.scenes("live_game"), [A, B, C]);
+
+      const unreadRole = scene({
+        cmmOptions: { serverMods: mods() },
+        stubs: {
+          localStorage: fakeSessionStorage({
+            [HOST]: JSON.stringify(["com.a"]),
+          }),
+          sessionStorage: fakeSessionStorage({ gw_campaign_role: "{" }),
+        },
+      });
+      assert.deepEqual(unreadRole.ns.manifest.scenes("live_game"), [A, B, C]);
 
       const refusing = scene({
         cmmOptions: { serverMods: mods() },

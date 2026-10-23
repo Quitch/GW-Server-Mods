@@ -190,10 +190,10 @@ describe("which connects install the hooks", () => {
         false,
         mode
       );
-      // A host list from an earlier session would filter this one.
+      // A viewer's reconnect is asked for no manifest, so the list must stay.
       assert.equal(
         "gw_server_mods_viewer_host_mods" in fixture.ctx.localStorage.store,
-        false,
+        true,
         mode
       );
       assert.equal(

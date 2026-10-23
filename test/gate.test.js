@@ -349,7 +349,25 @@ describe("the manifest request handler", () => {
       JSON.parse(fixture.ctx.localStorage.store.gw_server_mods_scenes),
       { live_game: [A] }
     );
-    assert.deepEqual(fixture.ns.manifest.scenes("live_game"), [A]);
+  });
+
+  it("still runs the stock handler when the scene list cannot be filtered", () => {
+    const fixture = scene();
+    fixture.ns.manifest.viewHost = () => {
+      throw new Error("filter failed");
+    };
+
+    fixture.ctx.handlers.request_client_mod_manifest({
+      required_identifiers: ["com.a"],
+    });
+
+    assert.equal(fixture.request.calls.length, 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] host server mods not applied filter failed"
+      ),
+      true
+    );
   });
 
   it("ignores a request without a required list and hands out copies", () => {

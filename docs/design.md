@@ -635,12 +635,15 @@ viewer may join with a server mod the host does not run (see
 [Which server mods have to match](#which-server-mods-have-to-match)). So when the host's
 required list reaches a viewer's `connect_to_game`, `gate.js` stores it in `localStorage`
 (`gw_server_mods_viewer_host_mods`) through `manifest.viewHost`, which also rewrites the
-scene list at once. From then on every scene list this client writes keeps only the server
-mods the host published, and those that declare `galacticWarMod`. The list lives in
-`localStorage` because a viewer goes from `gw_play` into each battle by the server's
-redirect, with no `connect_to_game` in between, and its `gw_play` mounts would otherwise
-widen the list again. Every connect clears it first (`markBattle`), and the server sends the
-manifest request only to viewers, so a host's or a solo player's list is never filtered. The
+scene list at once. The server asks only viewers for a manifest, so that rewrite filters
+before the role is known. After it, every scene list this client writes keeps only the
+server mods the host published, and those that declare `galacticWarMod`, for as long as
+stock's `gw_campaign_role` session var reads `viewer`. The list lives in `localStorage`
+because a viewer goes from `gw_play` into each battle by the server's redirect, with no
+`connect_to_game` in between, and its `gw_play` mounts would otherwise widen the list
+again. A viewer's reconnect is asked for no new manifest, so a Galactic War connect keeps the
+list. A connect that is not Galactic War clears it, and a role other than `viewer` (solo,
+host, or none) ignores it, so a list left from an earlier co-op session filters nothing. The
 host publishes only its client-relevant server mods, so a server mod that ships battle scene
 scripts but only AI trees would lose them on a viewer; every server mod with battle scene
 scripts in the measured set (Bugs, Exiles, Experimentals, Thorosmen, Second Wave) also ships
