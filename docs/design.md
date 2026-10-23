@@ -757,7 +757,10 @@ stays English.
   own punctuation: Japanese and Chinese take full-width colons, brackets and separators,
   while Korean keeps the English ones. `shared/alarm.js` fills the placeholders itself in
   one pass rather than through `loc()`'s options, because i18next fills them with
-  `String.replace`, which reads a `$` in an identifier as a pattern.
+  `String.replace`, which reads a `$` in an identifier as a pattern. A translated format
+  whose placeholders differ from the key's is not used: the banner falls back to the English
+  format rather than lose an alarm's text. Mod Translations lets a later mod's entry for the
+  same key replace this one, and the same fallback covers a replacement that drops one.
 - `test/translations.test.js` holds the file contract: the catalog's keys are exactly the
   `!LOC:` literals under `ui/`, each language file's keys are in the catalog, and every
   entry is one the loader accepts. A new or reworded string fails `verify` until the

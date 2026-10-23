@@ -42,11 +42,25 @@
       "!LOC:This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.",
   };
 
-  // loc() can fill these itself, but through String.replace, which reads a "$"
-  // in a value as a pattern, and an identifier is another mod's to choose. One
-  // pass, so a value that holds a placeholder is not filled in turn.
-  function fill(format, values) {
-    return format.replace(/__(\w+)__/g, function (placeholder, name) {
+  var PLACEHOLDER = /__([a-z]+)__/g;
+
+  function placeholders(text) {
+    return (text.match(PLACEHOLDER) || []).sort().join();
+  }
+
+  // See design.md.
+  function format(key) {
+    var english = _.trim(key.replace(/^!LOC:/, ""));
+    var translated = loc(key);
+
+    return _.isString(translated) &&
+      placeholders(translated) === placeholders(english)
+      ? translated
+      : english;
+  }
+
+  function fill(text, values) {
+    return text.replace(PLACEHOLDER, function (placeholder, name) {
       return _.has(values, name) ? values[name] : placeholder;
     });
   }
@@ -56,7 +70,7 @@
     var identifier = record.detail && record.detail.identifier;
 
     return identifier
-      ? fill(loc("!LOC:__wording__ (__identifier__)"), {
+      ? fill(format("!LOC:__wording__ (__identifier__)"), {
           wording: wording,
           identifier: identifier,
         })
@@ -96,19 +110,13 @@
     }
 
     var parts = _.map(_.uniq(raised, "code"), describe);
+    var separator = format("!LOC:__first__  |  __next__");
 
-    element.textContent = fill(loc("!LOC:__name__: __alarms__"), {
+    element.textContent = fill(format("!LOC:__name__: __alarms__"), {
       name: loc("!LOC:GW Server Mods"),
-      alarms: _.reduce(
-        parts.slice(1),
-        function (text, part) {
-          return fill(loc("!LOC:__first__  |  __next__"), {
-            first: text,
-            next: part,
-          });
-        },
-        parts[0]
-      ),
+      alarms: _.reduce(parts, function (text, part) {
+        return fill(separator, { first: text, next: part });
+      }),
     });
   }
 

@@ -117,6 +117,21 @@ describe("the translation files", () => {
     }
   });
 
+  // shared/alarm.js falls back to English for a format that loses one, so a
+  // dropped placeholder would ship as untranslated punctuation.
+  it("keep every placeholder of their key", () => {
+    const placeholders = (text) => (text.match(/__[a-z]+__/g) || []).sort();
+    for (const name of files) {
+      for (const [key, entry] of Object.entries(read(name))) {
+        assert.deepEqual(
+          placeholders(entry.message),
+          placeholders(key),
+          name + " " + key
+        );
+      }
+    }
+  });
+
   it("hold entries the loader accepts, sorted, each key once", () => {
     for (const name of files) {
       const text = fs.readFileSync(path.join(DIR, name), "utf8");

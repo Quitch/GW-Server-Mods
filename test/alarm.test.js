@@ -133,6 +133,41 @@ describe("alarm", () => {
     );
   });
 
+  it("falls back to the English format when a translation loses a placeholder", () => {
+    const document = fakeDocument();
+    const ctx = load({
+      document,
+      loc: paLoc({
+        "__name__: __alarms__": "__name__：__警报__",
+        "__wording__ (__identifier__)": "__wording__（）",
+        [ZIP_MISSING]: "缺少。",
+      }),
+    });
+
+    ctx.GwServerMods.alarm("zip_missing", { identifier: "com.example.server" });
+
+    assert.equal(
+      document.appended[0].textContent,
+      "GW Server Mods: 缺少。 (com.example.server)"
+    );
+  });
+
+  it("fills placeholders that touch", () => {
+    const document = fakeDocument();
+    const ctx = load({
+      document,
+      loc: paLoc({ "__first__  |  __next__": "__first____next__" }),
+    });
+
+    ctx.GwServerMods.alarm("zip_missing", {});
+    ctx.GwServerMods.alarm("cmm_unavailable", {});
+
+    assert.equal(
+      document.appended[0].textContent,
+      "GW Server Mods: " + ZIP_MISSING + CMM_UNAVAILABLE
+    );
+  });
+
   // An identifier is another mod's to choose.
   it("puts an identifier in as it is, dollar signs and placeholders included", () => {
     const document = fakeDocument();
