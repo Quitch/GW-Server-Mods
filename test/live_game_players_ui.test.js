@@ -22,7 +22,6 @@ describe("live_game_players ui", () => {
     const ctx = createContext({
       $: createFakeJQuery(),
       loadMods: (list) => loads.push(list),
-      localStorage: fakeSessionStorage({ gw_server_mods_gw_battle: "true" }),
       sessionStorage: fakeSessionStorage({
         gw_server_mods_scenes: JSON.stringify({ live_game_players: [URL] }),
       }),

@@ -132,7 +132,10 @@ describe("which connects install the hooks", () => {
         ),
         localStorage: fakeSessionStorage(
           Object.assign(
-            { gw_server_mods_scenes: SCENES, gw_server_mods_gw_battle: "true" },
+            {
+              gw_server_mods_scenes: SCENES,
+              gw_server_mods_not_gw_battle: "true",
+            },
             localValues
           )
         ),
@@ -174,16 +177,13 @@ describe("which connects install the hooks", () => {
 
   it("installs them when this client starts a Galactic War server", () => {
     for (const mode of ["gw", "coop_gw", "gw_campaign", "coop%5Fgw"]) {
-      const fixture = connect(
-        "?action=start&mode=" + mode + "&local=true",
-        {},
-        { gw_server_mods_gw_battle: "false" }
-      );
+      const fixture = connect("?action=start&mode=" + mode + "&local=true");
 
       assert.equal(hooked(fixture), true, mode);
       assert.equal(
-        fixture.ctx.localStorage.store.gw_server_mods_gw_battle,
-        "true"
+        "gw_server_mods_not_gw_battle" in fixture.ctx.localStorage.store,
+        false,
+        mode
       );
       assert.equal(
         fixture.ctx.localStorage.store.gw_server_mods_scenes,
@@ -200,7 +200,11 @@ describe("which connects install the hooks", () => {
       "?action=start&mode=gw+campaign",
     ]) {
       assertSkipped(
-        connect(search, { game_server_setup: JSON.stringify("gw_campaign") })
+        connect(
+          search,
+          { game_server_setup: JSON.stringify("gw_campaign") },
+          { gw_server_mods_not_gw_battle: "false" }
+        )
       );
     }
   });
@@ -353,14 +357,15 @@ describe("which connects install the hooks", () => {
   it("logs rather than throws when the battle cannot be marked", () => {
     const fixture = scene({
       stubs: {
+        location: { search: "?action=start" },
         localStorage: fakeSessionStorage({}, { setItemThrows: true }),
       },
     });
 
-    assert.equal(hooked(fixture), true);
+    assert.equal(hooked(fixture), false);
     assert.equal(
       fixture.console.lines.log.includes(
-        '[GW-SM] Galactic War battle mark not stored {"error":"Error: QuotaExceededError"}'
+        '[GW-SM] battle mark not stored {"error":"Error: QuotaExceededError"}'
       ),
       true
     );

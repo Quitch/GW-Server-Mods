@@ -389,10 +389,9 @@ with ten server mods reached its lobby in 27 s instead of 17 s (measured 2026-10
 
 A `connect_fail_destination` left from an earlier war errs towards installing them for a
 saved game, which is the old behaviour. Any other connect skips them, forgets the
-stored scene list, and clears the Galactic War battle mark that the battle panels' server
-mod UI waits for (see [Server mod scene scripts](#server-mod-scene-scripts)): with no
-hooks, no mount runs to rewrite the list, and a list left by an earlier war would load in
-this battle.
+stored scene list, and marks the battle as not Galactic War for the battle panels' server
+mod UI (see [Server mod scene scripts](#server-mod-scene-scripts)): with no hooks, no mount
+runs to rewrite the list, and a list left by an earlier war would load in this battle.
 
 ### Mount generations
 
@@ -614,10 +613,12 @@ battle's own server mod UI, and this client's store names its own active server 
 which a game hosted by someone else need not run: in a multiplayer join, the store path
 would load the scripts of a server mod only this client has enabled into the host's game.
 So `connect_to_game/start.js` marks every connect in `localStorage`
-(`gw_server_mods_gw_battle`, set for a Galactic War connect and removed for any other, by
-the test in [Only for a Galactic War connect](#only-for-a-galactic-war-connect)), and
-`serverUi.load` loads nothing without the mark. A connect that is not Galactic War also
-removes the scene list.
+(`gw_server_mods_not_gw_battle`, set for a connect that is not Galactic War and removed for
+one that is, by the test in [Only for a Galactic War connect](#only-for-a-galactic-war-connect)),
+and `serverUi.load` loads nothing while it is set. The mark names the battle that is not
+Galactic War so that every failure falls back to the behaviour before it: a mark that
+cannot be written or read leaves the battle loading as before, and a profile that has never
+connected since has none. A connect that is not Galactic War also removes the scene list.
 
 Where it runs: `live_game` (`ui.js`, which also loads the `shared_build` share,
 because `build.js` consumed that list before any scene script ran),

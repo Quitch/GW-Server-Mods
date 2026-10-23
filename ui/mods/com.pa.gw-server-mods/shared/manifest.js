@@ -374,28 +374,33 @@
     }
   }
 
-  // Whether the battle this client is connecting to is a Galactic War one, set
-  // by every connect_to_game. localStorage for the same reason as the scene
-  // list: the battle panels read it.
-  var GW_BATTLE_KEY = "gw_server_mods_gw_battle";
+  // Set by connect_to_game for a battle outside Galactic War, where Community
+  // Mods loads the battle's own server mod UI. localStorage for the same reason
+  // as the scene list. A mark that cannot be written or read counts as a
+  // Galactic War battle, which is what every battle was before it existed.
+  var NOT_GW_KEY = "gw_server_mods_not_gw_battle";
 
-  function markGwBattle(gw) {
+  function markBattle(gw) {
+    if (!gw) {
+      forgetScenes();
+    }
+
     try {
       if (gw) {
-        localStorage.setItem(GW_BATTLE_KEY, "true");
+        localStorage.removeItem(NOT_GW_KEY);
       } else {
-        localStorage.removeItem(GW_BATTLE_KEY);
+        localStorage.setItem(NOT_GW_KEY, "true");
       }
     } catch (e) {
-      ns.log("Galactic War battle mark not stored", { error: String(e) });
+      ns.log("battle mark not stored", { error: String(e) });
     }
   }
 
   function gwBattle() {
     try {
-      return localStorage.getItem(GW_BATTLE_KEY) === "true";
+      return localStorage.getItem(NOT_GW_KEY) !== "true";
     } catch (e) {
-      return false;
+      return true;
     }
   }
 
@@ -441,7 +446,7 @@
     scenes: scenes,
     rememberScenes: rememberScenes,
     forgetScenes: forgetScenes,
-    markGwBattle: markGwBattle,
+    markBattle: markBattle,
     gwBattle: gwBattle,
     modRoot: modRoot,
     pairedClientMods: pairedClientMods,

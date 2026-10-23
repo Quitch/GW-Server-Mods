@@ -14,7 +14,7 @@ const { resolved } = require("../scripts/lib/fake-jquery.js");
 const A = "coui://ui/mods/com.example/live_game/a.js";
 const B = "coui://ui/mods/com.example/live_game/b.js";
 const C = "coui://ui/mods/com.other/live_game/c.js";
-const GW_BATTLE = "gw_server_mods_gw_battle";
+const NOT_GW = "gw_server_mods_not_gw_battle";
 
 function scene(options) {
   const opts = options || {};
@@ -43,8 +43,8 @@ function scene(options) {
       ),
     })
   );
-  if (!opts.notGw && typeof fixture.ctx.localStorage.setItem === "function") {
-    fixture.ctx.localStorage.setItem(GW_BATTLE, "true");
+  if (opts.notGw) {
+    fixture.ctx.localStorage.setItem(NOT_GW, "true");
   }
   loadFile(fixture.ctx, "shared/server_ui.js");
   fixture.loads = loads;
@@ -139,13 +139,7 @@ describe("serverUi.load", () => {
     };
     const fixture = scene({
       cmm: null,
-      stubs: {
-        ko,
-        localStorage: {
-          installedModsDB: "1",
-          getItem: (key) => (key === GW_BATTLE ? "true" : null),
-        },
-      },
+      stubs: { ko, localStorage: { installedModsDB: "1" } },
     });
 
     assert.deepEqual(fixture.ns.serverUi.load("live_game"), []);
@@ -174,31 +168,36 @@ describe("serverUi.load", () => {
     };
     const listed = scene({ notGw: true });
     const stored = scene({
-      notGw: true,
       cmm: null,
       stubs: {
         ko,
-        localStorage: { installedModsDB: "1", getItem: () => null },
+        localStorage: {
+          installedModsDB: "1",
+          getItem: (key) => (key === NOT_GW ? "true" : null),
+        },
       },
     });
 
     assert.deepEqual(listed.ns.serverUi.load("live_game"), []);
+    assert.deepEqual(listed.ns.serverUi.load("shared_build"), []);
     assert.deepEqual(stored.ns.serverUi.load("live_game"), []);
     await flush();
 
     assert.deepEqual(listed.loads, []);
     assert.deepEqual(stored.loads, []);
     assert.equal(
-      listed.console.lines.log.includes(
-        '[GW-SM] not a Galactic War battle; server mod UI not loaded {"scene":"live_game"}'
-      ),
-      true
+      listed.console.lines.log.filter(
+        (line) =>
+          line === "[GW-SM] not a Galactic War battle; server mod UI not loaded"
+      ).length,
+      1
     );
   });
 
-  it("reads a mark it cannot read as no Galactic War battle", () => {
+  // Before the mark existed every battle loaded the list; a storage that
+  // cannot be read keeps that.
+  it("reads a mark it cannot read as a Galactic War battle", () => {
     const fixture = scene({
-      notGw: true,
       stubs: {
         localStorage: {
           getItem: () => {
@@ -208,8 +207,7 @@ describe("serverUi.load", () => {
       },
     });
 
-    assert.deepEqual(fixture.ns.serverUi.load("live_game"), []);
-    assert.deepEqual(fixture.loads, []);
+    assert.deepEqual(fixture.ns.serverUi.load("live_game"), [A, B, C]);
   });
 
   it("is loaded once per page", () => {

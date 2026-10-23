@@ -23,7 +23,6 @@ describe("live_game server mod UI", () => {
     // The scene as modinfo.json loads it, not the full shared set.
     const fixture = sharedScene({ cmm: null, files: [] });
 
-    fixture.ctx.localStorage.setItem("gw_server_mods_gw_battle", "true");
     fixture.ctx.localStorage.setItem(
       "gw_server_mods_scenes",
       JSON.stringify({ shared_build: [BUILD], live_game: [LIVE] })
