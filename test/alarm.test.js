@@ -11,6 +11,23 @@ const {
   loadFile,
 } = require("../scripts/lib/scene-loader.js");
 
+// PA's loc(): the tag stripped and the key trimmed, then looked up. A key with
+// no entry stands for itself, as every English string does.
+function paLoc(table) {
+  return (text) => {
+    if (typeof text !== "string" || !text.startsWith("!LOC:")) {
+      return text;
+    }
+    const key = text.slice("!LOC:".length).trim();
+    return table && key in table ? table[key] : key;
+  };
+}
+
+const ZIP_MISSING =
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.";
+const CMM_UNAVAILABLE =
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.";
+
 function load(stubs) {
   const ctx = createContext(stubs);
   loadFile(ctx, "shared/alarm.js");
@@ -50,7 +67,7 @@ describe("alarm", () => {
 
   it("creates one banner and reuses it, naming each code once", () => {
     const document = fakeDocument();
-    const ctx = load({ document });
+    const ctx = load({ document, loc: paLoc() });
 
     ctx.GwServerMods.alarm("zip_missing", { identifier: "a" });
     ctx.GwServerMods.alarm("zip_missing", { identifier: "b" });
@@ -60,7 +77,7 @@ describe("alarm", () => {
     const banner = document.appended[0];
     assert.equal(banner.id, "gw-sm-alarm");
     assert.match(banner.style.cssText, /position:fixed/);
-    assert.match(banner.textContent, /^!LOC:GW Server Mods: /);
+    assert.match(banner.textContent, /^GW Server Mods: /);
     assert.match(banner.textContent, /\(a\)/);
     assert.doesNotMatch(banner.textContent, /\(b\)/);
     assert.equal(banner.textContent.split("  |  ").length, 2);
@@ -68,13 +85,68 @@ describe("alarm", () => {
 
   it("uses the code itself when no wording is defined", () => {
     const document = fakeDocument();
-    const ctx = load({ document });
+    const ctx = load({ document, loc: paLoc() });
 
     ctx.GwServerMods.alarm("something_new");
 
     assert.equal(
       document.appended[0].textContent,
-      "!LOC:GW Server Mods: something_new"
+      "GW Server Mods: something_new"
+    );
+  });
+
+  it("writes the English banner as it always has", () => {
+    const document = fakeDocument();
+    const ctx = load({ document, loc: paLoc() });
+
+    ctx.GwServerMods.alarm("zip_missing", { identifier: "com.example.server" });
+    ctx.GwServerMods.alarm("cmm_unavailable", {});
+
+    assert.equal(
+      document.appended[0].textContent,
+      "GW Server Mods: " +
+        ZIP_MISSING +
+        " (com.example.server)  |  " +
+        CMM_UNAVAILABLE
+    );
+  });
+
+  it("takes the banner's punctuation from the translation", () => {
+    const document = fakeDocument();
+    const ctx = load({
+      document,
+      loc: paLoc({
+        "__name__: __alarms__": "__name__：__alarms__",
+        "__wording__ (__identifier__)": "__wording__（__identifier__）",
+        "__first__  |  __next__": "__first__　｜　__next__",
+        [ZIP_MISSING]: "缺少。",
+        [CMM_UNAVAILABLE]: "未启用。",
+      }),
+    });
+
+    ctx.GwServerMods.alarm("zip_missing", { identifier: "com.example.server" });
+    ctx.GwServerMods.alarm("cmm_unavailable", {});
+
+    assert.equal(
+      document.appended[0].textContent,
+      "GW Server Mods：缺少。（com.example.server）　｜　未启用。"
+    );
+  });
+
+  // An identifier is another mod's to choose.
+  it("puts an identifier in as it is, dollar signs and placeholders included", () => {
+    const document = fakeDocument();
+    const ctx = load({ document, loc: paLoc() });
+
+    ctx.GwServerMods.alarm("zip_missing", { identifier: "com.$&.__next__" });
+    ctx.GwServerMods.alarm("cmm_unavailable", {});
+
+    assert.equal(
+      document.appended[0].textContent,
+      "GW Server Mods: " +
+        ZIP_MISSING +
+        " (com.$&.__next__)  |  " +
+        CMM_UNAVAILABLE
     );
   });
 

@@ -42,11 +42,25 @@
       "!LOC:This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.",
   };
 
+  // loc() can fill these itself, but through String.replace, which reads a "$"
+  // in a value as a pattern, and an identifier is another mod's to choose. One
+  // pass, so a value that holds a placeholder is not filled in turn.
+  function fill(format, values) {
+    return format.replace(/__(\w+)__/g, function (placeholder, name) {
+      return _.has(values, name) ? values[name] : placeholder;
+    });
+  }
+
   function describe(record) {
     var wording = loc(WORDING[record.code] || record.code);
     var identifier = record.detail && record.detail.identifier;
 
-    return identifier ? wording + " (" + identifier + ")" : wording;
+    return identifier
+      ? fill(loc("!LOC:__wording__ (__identifier__)"), {
+          wording: wording,
+          identifier: identifier,
+        })
+      : wording;
   }
 
   // Not every scene composites its root document, live_game in particular.
@@ -81,10 +95,21 @@
       return;
     }
 
-    element.textContent =
-      loc("!LOC:GW Server Mods") +
-      ": " +
-      _.map(_.uniq(raised, "code"), describe).join("  |  ");
+    var parts = _.map(_.uniq(raised, "code"), describe);
+
+    element.textContent = fill(loc("!LOC:__name__: __alarms__"), {
+      name: loc("!LOC:GW Server Mods"),
+      alarms: _.reduce(
+        parts.slice(1),
+        function (text, part) {
+          return fill(loc("!LOC:__first__  |  __next__"), {
+            first: text,
+            next: part,
+          });
+        },
+        parts[0]
+      ),
+    });
   }
 
   ns.alarms = function () {
