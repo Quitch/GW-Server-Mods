@@ -556,15 +556,15 @@
     });
   }
 
-  // generation: the one the run read, or null for a run that failed before it
-  // read one.
-  function settle(ok, mods, timing, generation) {
+  // ticket.generation: the one the run read, or null for a run that failed
+  // before it read one.
+  function settle(ok, mods, timing, ticket) {
     state = {
       mounted: ok,
       at: Date.now(),
       mods: mods,
       sequence: state.sequence + 1,
-      generation: generation,
+      generation: ticket.generation,
     };
 
     ns.log("mounted server mods", {
@@ -584,7 +584,8 @@
   // mounts, so the mods' specs and images are readable there. Nothing is
   // restored when the mounts were skipped: nothing re-shadowed the merged
   // list. See design.md.
-  function mountRootOnly(mods, withContent, generation, timing) {
+  function mountRootOnly(mods, withContent, ticket, timing) {
+    var generation = ticket.generation;
     var roots;
 
     return timed(
@@ -603,13 +604,15 @@
         ]);
       })
       .then(function () {
-        settle(roots.ok, mods, timing, generation);
+        settle(roots.ok, mods, timing, ticket);
 
         return roots.ok;
       });
   }
 
-  function mountForBattle(mods, withContent, generation, timing) {
+  function mountForBattle(mods, withContent, ticket, timing) {
+    var generation = ticket.generation;
+
     report("!LOC:Mounting server mods");
 
     return timed(
@@ -644,7 +647,7 @@
         return timed(timing, "verify", verify(mods));
       })
       .then(function (ok) {
-        settle(ok, mods, timing, generation);
+        settle(ok, mods, timing, ticket);
 
         return ok;
       });
@@ -746,13 +749,11 @@
     return ns.settled(waits).then(function () {
       // Read as the mounts start, not when the run was queued or began
       // waiting: a teardown in between has dropped the mounts it would check.
-      var generation = rootGeneration;
-
-      ticket.generation = generation;
+      ticket.generation = rootGeneration;
 
       return rootOnly
-        ? mountRootOnly(mods, withContent, generation, timing)
-        : mountForBattle(mods, withContent, generation, timing);
+        ? mountRootOnly(mods, withContent, ticket, timing)
+        : mountForBattle(mods, withContent, ticket, timing);
     });
   }
 
@@ -787,7 +788,7 @@
       }
 
       ns.log("mount run failed " + reason);
-      settle(false, mods, timing, ticket.generation);
+      settle(false, mods, timing, ticket);
 
       return false;
     }
@@ -806,7 +807,7 @@
           checkPinnedUnitList("");
         }
 
-        settle(true, [], timing, ticket.generation);
+        settle(true, [], timing, ticket);
 
         return true;
       }
