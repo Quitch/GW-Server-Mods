@@ -723,6 +723,25 @@
     });
   }
 
+  function startMounts(mods, rootOnly, withContent, afterModuleLoads, timing) {
+    // Before the first mountAtRoot, while the base list is still readable.
+    var waits = [captureVanillaUnits()];
+
+    if (afterModuleLoads) {
+      waits.push(timed(timing, "wait", moduleLoadsSettled()));
+    }
+
+    return ns.settled(waits).then(function () {
+      // Read as the mounts start, not when the run was queued or began
+      // waiting: a teardown in between has dropped the mounts it would check.
+      var generation = rootGeneration;
+
+      return rootOnly
+        ? mountRootOnly(mods, withContent, generation, timing)
+        : mountForBattle(mods, withContent, generation, timing);
+    });
+  }
+
   // Repeatable: Galactic War tears the mounts down more than once per battle.
   // remountContent: false skips the content remount, which blanks the scene.
   function runOnce(options) {
@@ -739,9 +758,28 @@
     }
 
     var timing = { started: Date.now(), stages: {} };
+    var mods = [];
 
-    return Promise.resolve(ns.manifest.load()).then(function () {
-      var mods = ns.manifest.activeServerMods();
+    // See design.md.
+    function runFailed(error) {
+      var reason;
+
+      // What another mod throws may be circular, and stringifying it throws.
+      try {
+        reason =
+          (error && (error.stack || error.message)) || JSON.stringify(error);
+      } catch (e) {
+        reason = Object.prototype.toString.call(error);
+      }
+
+      ns.log("mount run failed " + reason);
+      settle(false, mods, timing);
+
+      return false;
+    }
+
+    var mounting = Promise.resolve(ns.manifest.load()).then(function () {
+      mods = ns.manifest.activeServerMods();
 
       ns.manifest.rememberScenes(mods);
 
@@ -757,23 +795,16 @@
         return true;
       }
 
-      // Before the first mountAtRoot, while the base list is still readable.
-      var waits = [captureVanillaUnits()];
-
-      if (options && options.afterModuleLoads) {
-        waits.push(timed(timing, "wait", moduleLoadsSettled()));
-      }
-
-      return ns.settled(waits).then(function () {
-        // Read as the mounts start, not when the run was queued or began
-        // waiting: a teardown in between has dropped the mounts it would check.
-        var generation = rootGeneration;
-
-        return rootOnly
-          ? mountRootOnly(mods, withContent, generation, timing)
-          : mountForBattle(mods, withContent, generation, timing);
-      });
+      return startMounts(
+        mods,
+        rootOnly,
+        withContent,
+        !!(options && options.afterModuleLoads),
+        timing
+      );
     });
+
+    return mounting.then(undefined, runFailed);
   }
 
   // A single unmount reaches here through two wrappers, and a full cycle costs
