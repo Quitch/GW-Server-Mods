@@ -127,6 +127,7 @@ describe("mount.run", () => {
     assert.equal(state.mounted, true);
     assert.deepEqual(state.mods, []);
     assert.equal(state.sequence, 1);
+    assert.equal(state.generation, 1);
     assert.equal(typeof state.at, "number");
     assert.equal(fixture.cmm.calls.mountServerMods, 0);
   });
@@ -212,6 +213,7 @@ describe("mount.run", () => {
 
     assert.equal(await run(fixture), false);
     assert.deepEqual(fixture.ns.mount.state().mods, []);
+    assert.equal(fixture.ns.mount.state().generation, null);
     assert.equal(fixture.ns.mount.sequence(), 1);
     assert.equal(
       fixture.console.lines.log.includes(
@@ -246,8 +248,8 @@ describe("mount.run", () => {
     assert.equal(fixture.ns.mount.sequence(), 2);
   });
 
-  // The outer wrapper reads the sequence to tell whether the inner one
-  // already remounted; a failed run counts, so it is not run twice.
+  // The outer wrapper reads the generation the last run read to tell whether
+  // the inner one already remounted; a failed run counts, so it is not run twice.
   it("counts a failed run for the hooks, so one teardown runs it once", async () => {
     const fixture = scene({
       cmmOptions: {
@@ -545,6 +547,34 @@ describe("mount.run", () => {
     });
     assert.equal(fixture.ns.mount.state().mounted, false);
     assert.equal(fixture.ns.mount.sequence(), 1);
+  });
+
+  // A run in flight as a teardown starts mounted under the old generation;
+  // its settling inside the teardown must not stand in for the remount.
+  it("remounts after a teardown that a run in flight settles inside", async () => {
+    const pending = Deferred();
+    const teardown = enginePromise();
+    const fixture = scene({
+      apiOptions: { unmountAllMemoryFiles: () => teardown },
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => pending.promise(),
+      },
+    });
+    fixture.ns.hooks.install();
+
+    const stale = run(fixture);
+    await flush();
+    fixture.api.file.unmountAllMemoryFiles();
+    pending.resolve();
+    assert.equal(await stale, true);
+
+    teardown.resolve();
+    await flush();
+
+    assert.equal(fixture.api.calls.zipMount.length, 2);
+    assert.equal(fixture.cmm.calls.mountServerMods, 2);
+    assert.equal(fixture.ns.mount.state().generation, 2);
   });
 
   it("shares one run between concurrent callers and starts a new one afterwards", async () => {
@@ -1370,6 +1400,52 @@ describe("the root mount generation", () => {
 
     assert.equal(fixture.api.calls.zipMount.length, 2);
     assert.equal(fixture.api.calls.remount.length, 1);
+  });
+
+  it("records the generation each run read as its mounts started", async () => {
+    const fixture = scene();
+
+    await run(fixture);
+    assert.equal(fixture.ns.mount.state().generation, 1);
+
+    fixture.ns.mount.invalidate();
+    await run(fixture);
+    assert.equal(fixture.ns.mount.state().generation, 2);
+  });
+
+  // A teardown that starts while a run is in flight drops that run's mounts,
+  // so a caller after it must get a run of its own.
+  it("does not hand a run that read an older generation to a later caller", async () => {
+    const pending = Deferred();
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => pending.promise(),
+      },
+    });
+
+    const stale = fixture.ns.mount.run();
+    await flush();
+    fixture.ns.mount.invalidate();
+    const later = fixture.ns.mount.run();
+    assert.notEqual(later, stale);
+
+    pending.resolve();
+    assert.equal(await later, true);
+
+    assert.equal(fixture.api.calls.zipMount.length, 2);
+    assert.equal(fixture.ns.mount.state().generation, 2);
+  });
+
+  it("still shares a run that has not read its generation yet", async () => {
+    const fixture = scene();
+
+    const first = fixture.ns.mount.run();
+    fixture.ns.mount.invalidate();
+
+    assert.equal(fixture.ns.mount.run(), first);
+    await first;
+    assert.equal(fixture.ns.mount.state().generation, 2);
   });
 
   it("does not skip the remount when the engine had none to run", async () => {
