@@ -496,7 +496,9 @@ silently, and does not report the "Registering" stage to the launch panel either
 Galactic War Overhaul shows a loading panel from the Fight click to the hand-off to
 `connect_to_game`, and exposes it as `model.gwoLaunchProgress`. This mod only reports
 into it: `mount.js` calls `stage()` when it starts mounting and again before the content
-remount. GWO owns the screen, so nothing here shows or hides it.
+remount. GWO owns the screen, so nothing here shows or hides it. Each call passes the
+localised text and the `!LOC:` key as `{ key: key }`, so a co-op viewer builds the line in its
+own language; a GWO older than the key ignores the second argument and shows the text.
 
 Two facts make that safe without a load-order contract in the code:
 
