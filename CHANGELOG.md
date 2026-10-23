@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## Unreleased
+
+- Skirmishes with server mods active start about 10 seconds sooner: Galactic War Server Mods no longer mounts every server mod a second time while connecting to a game outside Galactic War
+
 ## v1.5.0 - 2026-10-17
 
 - The galaxy map is ready about 2 seconds sooner each time you enter it, including after a battle and when joining or hosting co-op: server mods that are still mounted from the previous screen are no longer mounted a second time

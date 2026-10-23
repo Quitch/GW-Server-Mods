@@ -37,6 +37,7 @@ function scene(options) {
       {
         model: opts.model === null ? null : { send_message: send },
         stubs: {
+          location: { search: "?action=start&mode=gw" },
           handlers:
             opts.handlers === null
               ? undefined

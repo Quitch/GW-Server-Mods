@@ -366,6 +366,28 @@ Mods `gw_referee` state script reassigns it after the scene loads. `shared/hooks
 an accessor so whatever is assigned gets re-wrapped, which is deterministic where a repeating
 timer is a race that also gives up after a fixed number of tries.
 
+### Only for a Galactic War connect
+
+`connect_to_game` is also every skirmish, saved game, replay and multiplayer join, where
+Community Mods mounts the server mods through its own server channel. With the hooks
+installed there, each remount Community Mods makes for its companion client mods also
+mounted every active server zip at `/`, merged the unit list and verified it: an AI skirmish
+with ten server mods reached its lobby in 27 s instead of 17 s (measured 2026-10-23).
+`connect_to_game/start.js` therefore installs them only for a Galactic War connect:
+
+- A start (`action=start` in the URL) is Galactic War when its `mode` ends in `gw` (solo)
+  or is `gw_campaign` (co-op host).
+- A join or reconnect URL carries only the content, so what the sending scene stored is
+  read instead: `game_server_setup` of `gw_campaign` (an invite, a co-op restart) or
+  `game_type` of `GalacticWar` (the server browser) in sessionStorage, or in the engine's
+  `gSessionBackup` where sessionStorage has no value, as ko's session extender reads it;
+  or a `reconnect_to_game_info` whose `setup` or `game` says the same.
+
+A mark left from an earlier connect errs towards installing them, which is the old
+behaviour. Any other connect skips them and forgets the stored scene list (see
+[Server mod scene scripts](#server-mod-scene-scripts)): with no hooks, no mount runs to
+rewrite it, and a list left by an earlier war would load in this battle.
+
 ### Mount generations
 
 Zip mounts at `/` are dropped by that same `unmountAllMemoryFiles`, and by nothing else in a
@@ -457,7 +479,7 @@ calls the real remount, and records the generation as registered
 current and its content registered, and skips both. This mod's own `remountContent()`
 also goes through the accessor; the check finds the mounts current and the call is just
 the real remount plus the record. The accessor exists only in the scenes that install the
-hooks - `gw_play` and `connect_to_game` - so `start`, the battle scenes and
+hooks - `gw_play` and a Galactic War `connect_to_game` - so `start`, the battle scenes and
 `community_mods` are untouched. `CommunityModsManager.mountClientMods` and `mountZipMods`
 are not wrapped instead: both are manager internals rather than the engine seam this mod
 already documents taking, and `mountClientMods` also runs in `start`.
@@ -578,6 +600,11 @@ as its scene loads, before Community Mods has read its store, and that run sees 
 `community mods ready`. Written through, it would erase the list `gw_play` persisted and
 every battle scene would load nothing. Should the list be missing anyway, `serverUi.load`
 reads the store itself and loads late, after the scene has bound.
+
+A connect that is not Galactic War removes the list
+([Only for a Galactic War connect](#only-for-a-galactic-war-connect)). The battle scenes
+then take that store path, and in a skirmish every URL it finds is already in
+`scene_mod_list`, so nothing loads twice.
 
 Where it runs: `live_game` (`ui.js`, which also loads the `shared_build` share,
 because `build.js` consumed that list before any scene script ran),
@@ -731,3 +758,7 @@ faked; whether the engine behaves as faked is verified by loading the game.
     `coui://pa/units/unit_list.json` holds the merged count before and after; then disable a
     faction in Community Mods and re-enable it, and the count must drop and come back;
     the battle mount after the change raises `unit_list_pinned`.
+11. An AI skirmish from `start` logs `not a Galactic War connect; hooks not installed` in
+    `connect_to_game` and no `mounted server mods` line there, and `gw_server_mods_scenes`
+    is gone from localStorage; a co-op viewer joining from the server browser logs
+    `remountClientMods wrapped` instead.
