@@ -571,6 +571,88 @@ describe("manifest.scenes", () => {
     assert.deepEqual(fixture.ns.manifest.scenes("live_game"), [A]);
   });
 
+  describe("for a co-op viewer", () => {
+    const C = "coui://ui/mods/c/live_game.js";
+    const HOST = "gw_server_mods_viewer_host_mods";
+    const mods = () => [
+      mod({ identifier: "com.a", scenes: { live_game: [A] } }),
+      mod({ identifier: "com.b", scenes: { live_game: [B] } }),
+      mod({
+        identifier: "com.c",
+        galacticWarMod: true,
+        scenes: { live_game: [C] },
+      }),
+    ];
+
+    it("keeps the mods the host published, and Galactic War mods", () => {
+      const storage = fakeSessionStorage({ [HOST]: JSON.stringify(["com.a"]) });
+      const fixture = scene({
+        cmmOptions: { serverMods: mods() },
+        stubs: { localStorage: storage },
+      });
+
+      fixture.ns.manifest.rememberScenes(
+        fixture.ns.manifest.activeServerMods()
+      );
+
+      assert.deepEqual(JSON.parse(storage.store.gw_server_mods_scenes), {
+        live_game: [A, C],
+      });
+      assert.deepEqual(fixture.ns.manifest.scenes("live_game"), [A, C]);
+    });
+
+    it("writes an empty list when the host runs none of them", () => {
+      const storage = fakeSessionStorage({
+        gw_server_mods_scenes: JSON.stringify({ live_game: [B] }),
+      });
+      const fixture = scene({
+        cmmOptions: { serverMods: [mods()[1]] },
+        stubs: { localStorage: storage },
+      });
+
+      fixture.ns.manifest.viewHost(["com.other"]);
+
+      assert.deepEqual(JSON.parse(storage.store.gw_server_mods_scenes), {});
+      assert.deepEqual(JSON.parse(storage.store[HOST]), ["com.other"]);
+    });
+
+    it("leaves the list for a later mount when nothing is listed yet", () => {
+      const storage = fakeSessionStorage({
+        gw_server_mods_scenes: JSON.stringify({ live_game: [B] }),
+      });
+      const fixture = scene({ cmm: null, stubs: { localStorage: storage } });
+
+      fixture.ns.manifest.viewHost(["com.a"]);
+
+      assert.deepEqual(JSON.parse(storage.store.gw_server_mods_scenes), {
+        live_game: [B],
+      });
+      assert.deepEqual(JSON.parse(storage.store[HOST]), ["com.a"]);
+    });
+
+    it("filters nothing on a host list it cannot read, and logs one it cannot store", () => {
+      const garbled = scene({
+        cmmOptions: { serverMods: mods() },
+        stubs: { localStorage: fakeSessionStorage({ [HOST]: "{" }) },
+      });
+      assert.deepEqual(garbled.ns.manifest.scenes("live_game"), [A, B, C]);
+
+      const refusing = scene({
+        cmmOptions: { serverMods: mods() },
+        stubs: {
+          localStorage: fakeSessionStorage({}, { setItemThrows: true }),
+        },
+      });
+      refusing.ns.manifest.viewHost(["com.a"]);
+      assert.equal(
+        refusing.console.lines.log.includes(
+          '[GW-SM] host server mods not stored {"error":"Error: QuotaExceededError"}'
+        ),
+        true
+      );
+    });
+  });
+
   it("copes with storage that cannot be written or parsed", () => {
     const refusing = scene({
       stubs: {

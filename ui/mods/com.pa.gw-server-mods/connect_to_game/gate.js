@@ -118,6 +118,7 @@
           payload.required_names_by_id,
           payload.required_versions_by_id
         );
+        ns.manifest.viewHost(hostRequired);
 
         ns.log("host required mods received", { identifiers: hostRequired });
       }

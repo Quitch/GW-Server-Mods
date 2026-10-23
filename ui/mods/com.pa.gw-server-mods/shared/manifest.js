@@ -345,6 +345,34 @@
     return scenes;
   }
 
+  // A co-op viewer's battles run the host's server mods, so its scene list
+  // keeps only the ones the host published. The gate stores the host's list as
+  // it arrives, and every connect clears it. See design.md.
+  var HOST_MODS_KEY = "gw_server_mods_viewer_host_mods";
+
+  function hostMods() {
+    try {
+      var identifiers = JSON.parse(
+        localStorage.getItem(HOST_MODS_KEY) || "null"
+      );
+      return _.isArray(identifiers) ? identifiers : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function sharedWithHost(mods) {
+    var identifiers = hostMods();
+
+    if (!identifiers) {
+      return mods;
+    }
+
+    return _.filter(mods, function (mod) {
+      return mod.galacticWarMod || _.includes(identifiers, mod.identifier);
+    });
+  }
+
   // An empty list is not evidence: connect_to_game mounts before Community
   // Mods has read its store, and that run must not erase what gw_play wrote.
   function rememberScenes(mods) {
@@ -352,7 +380,7 @@
       return scenesCache;
     }
 
-    scenesCache = unionScenes(mods);
+    scenesCache = unionScenes(sharedWithHost(mods));
 
     try {
       localStorage.setItem(SCENES_KEY, JSON.stringify(scenesCache));
@@ -386,6 +414,8 @@
     }
 
     try {
+      localStorage.removeItem(HOST_MODS_KEY);
+
       if (gw) {
         localStorage.removeItem(NOT_GW_KEY);
       } else {
@@ -393,6 +423,19 @@
       }
     } catch (e) {
       ns.log("battle mark not stored", { error: String(e) });
+    }
+  }
+
+  // identifiers: the host's published required list, normalised.
+  function viewHost(identifiers) {
+    try {
+      localStorage.setItem(HOST_MODS_KEY, JSON.stringify(identifiers));
+    } catch (e) {
+      ns.log("host server mods not stored", { error: String(e) });
+    }
+
+    if (listed()) {
+      rememberScenes(activeServerMods());
     }
   }
 
@@ -413,7 +456,7 @@
   }
 
   function scenes(scene) {
-    var active = listed() ? activeServerMods() : [];
+    var active = listed() ? sharedWithHost(activeServerMods()) : [];
 
     if (active.length) {
       scenesCache = unionScenes(active);
@@ -447,6 +490,7 @@
     rememberScenes: rememberScenes,
     forgetScenes: forgetScenes,
     markBattle: markBattle,
+    viewHost: viewHost,
     gwBattle: gwBattle,
     modRoot: modRoot,
     pairedClientMods: pairedClientMods,
