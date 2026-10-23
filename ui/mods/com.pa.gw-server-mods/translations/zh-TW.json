@@ -3,7 +3,7 @@
     "message": "另一個模組已從戰鬥設定中移除了伺服器模組。戰鬥可能會在沒有它們的情況下開始。請停用其他銀河戰爭模組，然後重新開始。"
   },
   "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
-    "message": "社群模組未啟用。伺服器模組無法在銀河戰爭中載入。請在模組選單中啟用社群模組，然後重新啟動 PA。"
+    "message": "社群模組未啟用。伺服器模組無法在銀河戰爭中載入。請在 MODS 選單中啟用社群模組，然後重新啟動 PA。"
   },
   "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
     "message": "GW Server Mods 無法接入戰鬥連線流程。伺服器模組可能無法載入。請更新 GW Server Mods，然後重新啟動 PA。"

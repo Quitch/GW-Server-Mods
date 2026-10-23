@@ -3,7 +3,7 @@
     "message": "Eine andere Modifikation hat die Server-Modifikationen aus der Schlachtkonfiguration entfernt. Die Schlacht beginnt möglicherweise ohne sie. Deaktiviere andere Modifikationen für den Galaktischen Krieg und starte dann erneut."
   },
   "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
-    "message": "Community-Modifikationen sind nicht aktiv. Server-Modifikationen können im Galaktischen Krieg nicht geladen werden. Aktiviere Community-Modifikationen im Menü „Modifizierungen“ und starte PA dann neu."
+    "message": "Community-Modifikationen sind nicht aktiv. Server-Modifikationen können im Galaktischen Krieg nicht geladen werden. Aktiviere Community-Modifikationen im Menü MODS und starte PA dann neu."
   },
   "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
     "message": "GW Server Mods konnte sich nicht in die Schlachtverbindung einklinken. Server-Modifikationen werden möglicherweise nicht geladen. Aktualisiere GW Server Mods und starte PA dann neu."

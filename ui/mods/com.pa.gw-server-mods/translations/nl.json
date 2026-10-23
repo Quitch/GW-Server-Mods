@@ -3,7 +3,7 @@
     "message": "Een andere mod heeft de servermods uit de strijdinstellingen verwijderd. De strijd kan zonder ze beginnen. Schakel andere mods voor de Galactische Oorlog uit en start daarna opnieuw."
   },
   "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
-    "message": "Community-mods is niet actief. Servermods kunnen niet laden in de Galactische Oorlog. Schakel Community-mods in via het menu Mods en start PA daarna opnieuw."
+    "message": "Community-mods is niet actief. Servermods kunnen niet laden in de Galactische Oorlog. Schakel Community-mods in via het menu MODS en start PA daarna opnieuw."
   },
   "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
     "message": "GW Server Mods kon niet aansluiten op de verbinding met de strijd. Servermods laden mogelijk niet. Werk GW Server Mods bij en start PA daarna opnieuw."

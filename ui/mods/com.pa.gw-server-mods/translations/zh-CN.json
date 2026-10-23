@@ -3,7 +3,7 @@
     "message": "另一个模组已从战斗设置中移除了服务器模组。战斗可能会在没有它们的情况下开始。请禁用其他银河战争模组，然后重新开始。"
   },
   "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
-    "message": "社区模组未启用。服务器模组无法在银河战争中加载。请在模组菜单中启用社区模组，然后重新启动 PA。"
+    "message": "社区模组未启用。服务器模组无法在银河战争中加载。请在 MODS 菜单中启用社区模组，然后重新启动 PA。"
   },
   "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
     "message": "GW Server Mods 无法接入战斗连接流程。服务器模组可能无法加载。请更新 GW Server Mods，然后重新启动 PA。"
@@ -33,7 +33,7 @@
     "message": "服务器模组已加载，但 PA 无法读取其文件。模组单位可能缺失。请重新启动 PA。如果此消息再次出现，请重新安装服务器模组。"
   },
   "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
-    "message": "服务器模组已加载，但 PA 可能会在战斗开始前将其卸载。请更新 GW Server Mods 和社区模组，然后重新启动 PA。"
+    "message": "服务器模组已加载，但 PA 可能会在战斗开始前取消加载它们。请更新 GW Server Mods 和社区模组，然后重新启动 PA。"
   },
   "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
     "message": "服务器模组已加载，但合作模式无法在玩家之间比较它们。使用不同模组的玩家可能会加入。请更新 GW Server Mods 和社区模组。"

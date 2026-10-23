@@ -3,7 +3,7 @@
     "message": "別の Mod が戦闘設定からサーバー Mod を削除しました。サーバー Mod なしで戦闘が始まる可能性があります。他の星系間戦争の Mod を無効にしてから、もう一度開始してください。"
   },
   "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
-    "message": "コミュニティ Mod が有効ではありません。星系間戦争でサーバー Mod を読み込めません。Mods メニューでコミュニティ Mod を有効にしてから、PA を再起動してください。"
+    "message": "コミュニティ Mod が有効ではありません。星系間戦争でサーバー Mod を読み込めません。MODS メニューでコミュニティ Mod を有効にしてから、PA を再起動してください。"
   },
   "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
     "message": "GW Server Mods は戦闘の接続処理にフックできませんでした。サーバー Mod が読み込まれない可能性があります。GW Server Mods を更新してから、PA を再起動してください。"

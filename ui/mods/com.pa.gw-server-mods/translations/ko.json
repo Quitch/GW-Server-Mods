@@ -3,7 +3,7 @@
     "message": "다른 모드가 전투 설정에서 서버 모드를 제거했습니다. 서버 모드 없이 전투가 시작될 수 있습니다. 다른 은하계 전쟁 모드를 비활성화한 다음 다시 시작하세요."
   },
   "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
-    "message": "커뮤니티 모드가 활성화되어 있지 않습니다. 은하계 전쟁에서 서버 모드를 불러올 수 없습니다. 모드 메뉴에서 커뮤니티 모드를 활성화한 다음 PA를 다시 시작하세요."
+    "message": "커뮤니티 모드가 활성화되어 있지 않습니다. 은하계 전쟁에서 서버 모드를 불러올 수 없습니다. MODS 메뉴에서 커뮤니티 모드를 활성화한 다음 PA를 다시 시작하세요."
   },
   "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
     "message": "GW Server Mods가 전투 접속에 연결하지 못했습니다. 서버 모드를 불러오지 못할 수 있습니다. GW Server Mods를 업데이트한 다음 PA를 다시 시작하세요."

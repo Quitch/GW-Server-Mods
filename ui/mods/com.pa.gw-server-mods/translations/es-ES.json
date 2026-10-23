@@ -3,7 +3,7 @@
     "message": "Otra modificación ha quitado las modificaciones del servidor de la configuración de la batalla. La batalla puede empezar sin ellas. Desactiva otras modificaciones de la Guerra galáctica y vuelve a empezar."
   },
   "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
-    "message": "Modificaciones de la comunidad no está activo. Las modificaciones del servidor no se pueden cargar en la Guerra galáctica. Activa Modificaciones de la comunidad en el menú Modificaciones y reinicia PA."
+    "message": "Modificaciones de la comunidad no está activo. Las modificaciones del servidor no se pueden cargar en la Guerra galáctica. Activa Modificaciones de la comunidad en el menú MODS y reinicia PA."
   },
   "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
     "message": "GW Server Mods no ha podido engancharse a la conexión de la batalla. Es posible que las modificaciones del servidor no se carguen. Actualiza GW Server Mods y reinicia PA."

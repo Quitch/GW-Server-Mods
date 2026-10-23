@@ -3,7 +3,7 @@
     "message": "Другой мод убрал моды сервера из настроек битвы. Битва может начаться без них. Отключите другие моды для Галактической Войны и начните снова."
   },
   "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
-    "message": "Моды сообщества не активны. Моды сервера не могут загрузиться в Галактической Войне. Включите Моды сообщества в меню «Моды», затем перезапустите PA."
+    "message": "Моды сообщества не активны. Моды сервера не могут загрузиться в Галактической Войне. Включите Моды сообщества в меню MODS, затем перезапустите PA."
   },
   "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
     "message": "GW Server Mods не смог встроиться в подключение к битве. Моды сервера могут не загрузиться. Обновите GW Server Mods, затем перезапустите PA."
