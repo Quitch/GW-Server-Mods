@@ -750,7 +750,7 @@ than none, because it looks like enforcement.
 ## Translations
 
 Every player-facing string is a `!LOC:` key: the alarm wording, the banner's
-`GW Server Mods` prefix, and the two launch stages. The game's own tables have none of
+`GW Server Mods` prefix, the banner's punctuation, and the two launch stages. The game's own tables have none of
 them, so the mod ships its own through
 [Mod Translations](https://github.com/Quitch/Mod-Translations), which merges a mod's
 `translations/<lang>.json` into the store the stock `loc()` reads. `modinfo.json` lists it
@@ -763,6 +763,15 @@ stays English.
 - `translations/<lang>.json` holds one language, named for its folder under the game's
   `ui/main/_i18n/locales/`. `de-AT` and `nl-BE` fall back to `de` and `nl`. The mod's
   name is a proper noun and stays English, so the language files leave it out.
+- The banner is built from three format keys - `__name__: __alarms__`,
+  `__wording__ (__identifier__)` and `__first__  |  __next__` - so a language can use its
+  own punctuation: Japanese and Chinese take full-width colons, brackets and separators,
+  while Korean keeps the English ones. `shared/alarm.js` fills the placeholders itself in
+  one pass rather than through `loc()`'s options, because i18next fills them with
+  `String.replace`, which reads a `$` in an identifier as a pattern. A translated format
+  whose placeholders differ from the key's is not used: the banner falls back to the English
+  format rather than lose an alarm's text. Mod Translations lets a later mod's entry for the
+  same key replace this one, and the same fallback covers a replacement that drops one.
 - `test/translations.test.js` holds the file contract: the catalog's keys are exactly the
   `!LOC:` literals under `ui/`, each language file's keys are in the catalog, and every
   entry is one the loader accepts. A new or reworded string fails `verify` until the

@@ -42,11 +42,39 @@
       "!LOC:This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.",
   };
 
+  var PLACEHOLDER = /__([a-z]+)__/g;
+
+  function placeholders(text) {
+    return (text.match(PLACEHOLDER) || []).sort().join();
+  }
+
+  // See design.md.
+  function format(key) {
+    var english = _.trim(key.replace(/^!LOC:/, ""));
+    var translated = loc(key);
+
+    return _.isString(translated) &&
+      placeholders(translated) === placeholders(english)
+      ? translated
+      : english;
+  }
+
+  function fill(text, values) {
+    return text.replace(PLACEHOLDER, function (placeholder, name) {
+      return _.has(values, name) ? values[name] : placeholder;
+    });
+  }
+
   function describe(record) {
     var wording = loc(WORDING[record.code] || record.code);
     var identifier = record.detail && record.detail.identifier;
 
-    return identifier ? wording + " (" + identifier + ")" : wording;
+    return identifier
+      ? fill(format("!LOC:__wording__ (__identifier__)"), {
+          wording: wording,
+          identifier: identifier,
+        })
+      : wording;
   }
 
   // Not every scene composites its root document, live_game in particular.
@@ -81,10 +109,15 @@
       return;
     }
 
-    element.textContent =
-      loc("!LOC:GW Server Mods") +
-      ": " +
-      _.map(_.uniq(raised, "code"), describe).join("  |  ");
+    var parts = _.map(_.uniq(raised, "code"), describe);
+    var separator = format("!LOC:__first__  |  __next__");
+
+    element.textContent = fill(format("!LOC:__name__: __alarms__"), {
+      name: loc("!LOC:GW Server Mods"),
+      alarms: _.reduce(parts, function (text, part) {
+        return fill(separator, { first: text, next: part });
+      }),
+    });
   }
 
   ns.alarms = function () {

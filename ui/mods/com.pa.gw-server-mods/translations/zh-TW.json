@@ -49,5 +49,14 @@
   },
   "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
     "message": "你首次進入銀河戰爭星圖後，伺服器模組發生了變化。戰鬥會沿用 PA 當時讀取的單位清單，因此可能缺少單位。請重新啟動 PA，然後開始戰鬥。"
+  },
+  "__first__  |  __next__": {
+    "message": "__first__　｜　__next__"
+  },
+  "__name__: __alarms__": {
+    "message": "__name__：__alarms__"
+  },
+  "__wording__ (__identifier__)": {
+    "message": "__wording__（__identifier__）"
   }
 }

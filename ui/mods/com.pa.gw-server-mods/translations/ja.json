@@ -49,5 +49,14 @@
   },
   "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
     "message": "星系間戦争の銀河マップに初めて入った後で、サーバー Mod が変更されました。戦闘ではその時点で PA が読み込んだユニットリストが使われるため、ユニットが欠けている可能性があります。PA を再起動してから、戦闘を開始してください。"
+  },
+  "__first__  |  __next__": {
+    "message": "__first__　｜　__next__"
+  },
+  "__name__: __alarms__": {
+    "message": "__name__：__alarms__"
+  },
+  "__wording__ (__identifier__)": {
+    "message": "__wording__（__identifier__）"
   }
 }
