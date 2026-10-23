@@ -9,49 +9,82 @@
     return _.isString(mode) && mode.substr(-2, 2).toLowerCase() === "gw";
   }
 
+  var GW_PLAY = "coui://ui/main/game/galactic_war/gw_play/gw_play.html";
+
   function urlParam(name) {
     var match = new RegExp("[?&]" + name + "=([^&#]*)").exec(
       (root.location && root.location.search) || ""
     );
 
-    return match ? decodeURIComponent(match[1].replace(/\+/g, " ")) : null;
+    if (!match) {
+      return null;
+    }
+
+    try {
+      return decodeURIComponent(match[1].replace(/\+/g, " "));
+    } catch (e) {
+      return match[1];
+    }
   }
 
-  function stored(store, key) {
+  function parsed(text) {
     try {
-      return JSON.parse(store.getItem(key) || "null");
+      return JSON.parse(text);
     } catch (e) {
       return null;
     }
   }
 
-  // The fallback ko's session extender reads when sessionStorage has no value.
+  // ko's session extender reads the engine's backup only when sessionStorage
+  // has nothing under the key. It writes the backup encoded, and writes the
+  // string "undefined" for a cleared value.
   function session(key) {
-    var value = stored(sessionStorage, key);
+    var text = sessionStorage.getItem(key);
 
-    if (value === null && root.gSessionBackup) {
-      value = root.gSessionBackup[key];
+    if (text) {
+      return parsed(text);
     }
 
-    return value;
+    var backup = root.gSessionBackup && root.gSessionBackup[key];
+
+    if (!_.isString(backup) || backup === "undefined") {
+      return null;
+    }
+
+    var decoded = parsed(backup);
+
+    return decoded === null ? backup : decoded;
   }
 
-  // A join or reconnect URL carries only the content; the scene that sent it
-  // stored the Galactic War context. See design.md.
+  function fromGwPlay() {
+    var destination = session("connect_fail_destination");
+
+    return _.isString(destination) && _.startsWith(destination, GW_PLAY);
+  }
+
+  // See design.md.
   function isGwConnect() {
     var mode = urlParam("mode");
 
     if (urlParam("action") === "start") {
-      return isGwMode(mode) || mode === "gw_campaign";
+      return (
+        isGwMode(mode) ||
+        mode === "gw_campaign" ||
+        (mode === "loadsave" && fromGwPlay())
+      );
     }
 
-    var reconnect = stored(localStorage, "reconnect_to_game_info") || {};
+    var setup = session("game_server_setup");
+
+    if (setup) {
+      return setup === "gw_campaign" || session("game_type") === "GalacticWar";
+    }
+
+    var reconnect =
+      parsed(localStorage.getItem("reconnect_to_game_info")) || {};
 
     return (
-      session("game_server_setup") === "gw_campaign" ||
-      session("game_type") === "GalacticWar" ||
-      reconnect.setup === "gw_campaign" ||
-      reconnect.game === "GalacticWar"
+      reconnect.setup === "gw_campaign" || reconnect.game === "GalacticWar"
     );
   }
 

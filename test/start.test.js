@@ -196,7 +196,13 @@ describe("which connects install the hooks", () => {
   it("installs them for a join the previous scene marked as Galactic War", () => {
     const marks = [
       [{ game_server_setup: JSON.stringify("gw_campaign") }, {}],
-      [{ game_type: JSON.stringify("GalacticWar") }, {}],
+      [
+        {
+          game_server_setup: JSON.stringify("game"),
+          game_type: JSON.stringify("GalacticWar"),
+        },
+        {},
+      ],
       [
         {},
         { reconnect_to_game_info: JSON.stringify({ setup: "gw_campaign" }) },
@@ -215,25 +221,101 @@ describe("which connects install the hooks", () => {
     }
   });
 
-  it("reads the engine's session backup when sessionStorage has no value", () => {
-    const backedUp = scene({
-      stubs: {
-        location: { search: "?content=PAExpansion1" },
-        gSessionBackup: { game_type: "GalacticWar" },
-      },
-    });
-    assert.equal(hooked(backedUp), true);
+  it("installs them when a Galactic War battle resumes from its save", () => {
+    const search = "?action=start&mode=loadsave&loadpath=gw.pas&local=true";
 
-    const shadowed = scene({
-      stubs: {
-        location: { search: "?content=PAExpansion1" },
-        sessionStorage: fakeSessionStorage({
+    for (const page of [
+      "coui://ui/main/game/galactic_war/gw_play/gw_play.html",
+      "coui://ui/main/game/galactic_war/gw_play/gw_play.html?gw_campaign=1",
+    ]) {
+      assert.equal(
+        hooked(
+          connect(search, { connect_fail_destination: JSON.stringify(page) })
+        ),
+        true,
+        page
+      );
+    }
+
+    assertSkipped(
+      connect(search, {
+        connect_fail_destination: JSON.stringify(
+          "coui://ui/main/game/start/start.html"
+        ),
+      })
+    );
+  });
+
+  it("lets a set game_server_setup outrank the reconnect record", () => {
+    assertSkipped(
+      connect(
+        "?content=PAExpansion1",
+        {
+          game_server_setup: JSON.stringify("game"),
+          game_type: JSON.stringify("FreeForAll"),
+        },
+        {
+          reconnect_to_game_info: JSON.stringify({
+            setup: "gw_campaign",
+            game: "GalacticWar",
+          }),
+        }
+      )
+    );
+  });
+
+  it("reads the engine's session backup when sessionStorage has no value", () => {
+    function joined(backup, sessionValues, localValues) {
+      const fixture = scene({
+        stubs: {
+          location: { search: "?content=PAExpansion1" },
+          sessionStorage: fakeSessionStorage(sessionValues),
+          localStorage: fakeSessionStorage(localValues),
+          gSessionBackup: backup,
+        },
+      });
+      return hooked(fixture);
+    }
+
+    assert.equal(
+      joined({
+        game_server_setup: JSON.stringify("game"),
+        game_type: JSON.stringify("GalacticWar"),
+      }),
+      true
+    );
+    assert.equal(joined({ game_server_setup: "gw_campaign" }), true);
+    assert.equal(
+      joined(
+        { game_server_setup: "undefined" },
+        {},
+        { reconnect_to_game_info: JSON.stringify({ game: "GalacticWar" }) }
+      ),
+      true
+    );
+    assert.equal(joined({ game_server_setup: 7 }), false);
+    assert.equal(
+      joined(
+        { game_type: JSON.stringify("GalacticWar") },
+        {
+          game_server_setup: JSON.stringify("game"),
           game_type: JSON.stringify("Waiting"),
-        }),
-        gSessionBackup: { game_type: "GalacticWar" },
-      },
-    });
-    assert.equal(hooked(shadowed), false);
+        }
+      ),
+      false
+    );
+    assert.equal(
+      joined(
+        { game_server_setup: JSON.stringify("gw_campaign") },
+        { game_server_setup: "null" }
+      ),
+      false
+    );
+  });
+
+  it("reads a malformed escape in the URL as it stands", () => {
+    assertSkipped(connect("?action=start&mode=%E0"));
+    assert.equal(hooked(connect("?action=start&mode=coop%E0gw")), true);
   });
 
   it("skips them for any other join", () => {

@@ -376,15 +376,20 @@ with ten server mods reached its lobby in 27 s instead of 17 s (measured 2026-10
 `connect_to_game/start.js` therefore installs them only for a Galactic War connect:
 
 - A start (`action=start` in the URL) is Galactic War when its `mode` ends in `gw` (solo)
-  or is `gw_campaign` (co-op host).
+  or is `gw_campaign` (co-op host). A battle resumed from its save starts as `loadsave`
+  (`gw_play.js:4960-4966`), like any saved game; it counts when `connect_fail_destination`
+  is the `gw_play` page, which `gw_play` sets before every connect and clears as it loads.
 - A join or reconnect URL carries only the content, so what the sending scene stored is
-  read instead: `game_server_setup` of `gw_campaign` (an invite, a co-op restart) or
-  `game_type` of `GalacticWar` (the server browser) in sessionStorage, or in the engine's
-  `gSessionBackup` where sessionStorage has no value, as ko's session extender reads it;
-  or a `reconnect_to_game_info` whose `setup` or `game` says the same.
+  read instead, from sessionStorage, or from the engine's `gSessionBackup` where
+  sessionStorage has no value, as ko's session extender reads it. Where
+  `game_server_setup` is set, it decides: `gw_campaign` (an invite, a co-op restart), or a
+  `game_type` of `GalacticWar` (the server browser). The main menu's Reconnect clears it,
+  and only then does `reconnect_to_game_info` decide, by its `setup` or `game`; it outlives
+  the game it describes, so it must not outrank a current mark.
 
-A mark left from an earlier connect errs towards installing them, which is the old
-behaviour. Any other connect skips them and forgets the stored scene list (see
+A `connect_fail_destination` left from an earlier war errs towards installing them for a
+saved game, which is the old behaviour. Any other connect skips them and forgets the
+stored scene list (see
 [Server mod scene scripts](#server-mod-scene-scripts)): with no hooks, no mount runs to
 rewrite it, and a list left by an earlier war would load in this battle.
 
