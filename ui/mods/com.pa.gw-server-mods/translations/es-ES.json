@@ -1,0 +1,53 @@
+{
+  "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.": {
+    "message": "Otra modificación ha quitado las modificaciones del servidor de la configuración de la batalla. La batalla puede empezar sin ellas. Desactiva otras modificaciones de la Guerra galáctica y vuelve a empezar."
+  },
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
+    "message": "Modificaciones de la comunidad no está activo. Las modificaciones del servidor no se pueden cargar en la Guerra galáctica. Activa Modificaciones de la comunidad en el menú MODS y reinicia PA."
+  },
+  "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods no ha podido engancharse a la conexión de la batalla. Es posible que las modificaciones del servidor no se carguen. Actualiza GW Server Mods y reinicia PA."
+  },
+  "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods no ha podido engancharse al inicio de la batalla. Es posible que las modificaciones del servidor no se carguen. Actualiza GW Server Mods y reinicia PA."
+  },
+  "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.": {
+    "message": "GW Server Mods no ha podido indicar al anfitrión qué modificaciones del servidor usas. El anfitrión no puede comprobar tus modificaciones. Sal de la partida, reinicia PA y vuelve a unirte."
+  },
+  "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.": {
+    "message": "GW Server Mods no ha podido indicar a los demás jugadores qué modificaciones del servidor necesita esta batalla. Pueden unirse jugadores que no las tengan. Reinicia PA y vuelve a alojar la batalla."
+  },
+  "Mounting server mods": {
+    "message": "Montando modificaciones del servidor"
+  },
+  "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.": {
+    "message": "Solo se cargarán las unidades de una facción. Varias modificaciones del servidor incluyen cada una su lista de unidades, y PA ha rechazado la lista combinada. Reinicia PA y vuelve a empezar la batalla. Si este mensaje vuelve a aparecer, activa solo una modificación del servidor de facción."
+  },
+  "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.": {
+    "message": "PA no ha registrado los modelos y texturas de las modificaciones del servidor. Las unidades modificadas pueden ser invisibles. Reinicia PA. Si este mensaje vuelve a aparecer, notifícalo junto con tu registro de PA."
+  },
+  "Registering server mod content": {
+    "message": "Registrando el contenido de las modificaciones del servidor"
+  },
+  "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.": {
+    "message": "Se han cargado las modificaciones del servidor, pero PA no puede leer sus archivos. Puede que falten unidades modificadas. Reinicia PA. Si este mensaje vuelve a aparecer, reinstala las modificaciones del servidor."
+  },
+  "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
+    "message": "Se han cargado las modificaciones del servidor, pero PA puede descargarlas antes de que empiece la batalla. Actualiza GW Server Mods y Modificaciones de la comunidad y reinicia PA."
+  },
+  "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
+    "message": "Se han cargado las modificaciones del servidor, pero el modo cooperativo no puede compararlas entre jugadores. Pueden unirse jugadores con otras modificaciones. Actualiza GW Server Mods y Modificaciones de la comunidad."
+  },
+  "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.": {
+    "message": "Esta modificación del servidor no se ha cargado. Puede que su zip esté dañado. Desinstálala en Modificaciones de la comunidad y vuelve a instalarla."
+  },
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.": {
+    "message": "Esta modificación del servidor está activada, pero su zip no se ha descargado. Abre Modificaciones de la comunidad y descárgala, o desactívala."
+  },
+  "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
+    "message": "Esta modificación del servidor está instalada como carpeta. La Guerra galáctica no puede usarla. Instálala como zip desde Modificaciones de la comunidad."
+  },
+  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
+    "message": "Tus modificaciones del servidor cambiaron después de entrar por primera vez en el mapa galáctico de la Guerra galáctica. Las batallas conservan la lista de unidades que PA leyó entonces, así que pueden faltar unidades. Reinicia PA y luego empieza la batalla."
+  }
+}

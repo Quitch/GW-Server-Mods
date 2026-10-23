@@ -1,0 +1,53 @@
+{
+  "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.": {
+    "message": "別の Mod が戦闘設定からサーバー Mod を削除しました。サーバー Mod なしで戦闘が始まる可能性があります。他の星系間戦争の Mod を無効にしてから、もう一度開始してください。"
+  },
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
+    "message": "コミュニティ Mod が有効ではありません。星系間戦争でサーバー Mod を読み込めません。MODS メニューでコミュニティ Mod を有効にしてから、PA を再起動してください。"
+  },
+  "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods は戦闘の接続処理にフックできませんでした。サーバー Mod が読み込まれない可能性があります。GW Server Mods を更新してから、PA を再起動してください。"
+  },
+  "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods は戦闘の開始処理にフックできませんでした。サーバー Mod が読み込まれない可能性があります。GW Server Mods を更新してから、PA を再起動してください。"
+  },
+  "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.": {
+    "message": "GW Server Mods は、使用中のサーバー Mod をホストに伝えられませんでした。ホストはあなたの Mod を確認できません。ゲームから退出し、PA を再起動してから、もう一度参加してください。"
+  },
+  "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.": {
+    "message": "GW Server Mods は、この戦闘に必要なサーバー Mod を他のプレイヤーに伝えられませんでした。それらを持たないプレイヤーが参加する可能性があります。PA を再起動してから、もう一度戦闘をホストしてください。"
+  },
+  "Mounting server mods": {
+    "message": "サーバー Mod をマウント中"
+  },
+  "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.": {
+    "message": "1 つのファクションのユニットしか読み込まれません。複数のサーバー Mod がそれぞれユニットリストを含んでおり、PA が統合したリストを拒否しました。PA を再起動してから、もう一度戦闘を開始してください。このメッセージが再び表示される場合は、ファクションのサーバー Mod を 1 つだけ有効にしてください。"
+  },
+  "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.": {
+    "message": "PA がサーバー Mod のモデルとテクスチャを登録しませんでした。Mod のユニットが表示されない可能性があります。PA を再起動してください。このメッセージが再び表示される場合は、PA のログを添えて報告してください。"
+  },
+  "Registering server mod content": {
+    "message": "サーバー Mod のコンテンツを登録中"
+  },
+  "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.": {
+    "message": "サーバー Mod は読み込まれましたが、PA がそのファイルを読み取れません。Mod のユニットが欠けている可能性があります。PA を再起動してください。このメッセージが再び表示される場合は、サーバー Mod を再インストールしてください。"
+  },
+  "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
+    "message": "サーバー Mod は読み込まれましたが、戦闘開始前に PA が解除する可能性があります。GW Server Mods とコミュニティ Mod を更新してから、PA を再起動してください。"
+  },
+  "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
+    "message": "サーバー Mod は読み込まれましたが、協力プレイではプレイヤー間で比較できません。異なる Mod を使うプレイヤーが参加する可能性があります。GW Server Mods とコミュニティ Mod を更新してください。"
+  },
+  "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.": {
+    "message": "このサーバー Mod は読み込まれませんでした。zip が破損している可能性があります。コミュニティ Mod でアンインストールしてから、もう一度インストールしてください。"
+  },
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.": {
+    "message": "このサーバー Mod は有効ですが、zip がダウンロードされていません。コミュニティ Mod を開いてダウンロードするか、無効にしてください。"
+  },
+  "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
+    "message": "このサーバー Mod はフォルダとしてインストールされています。星系間戦争では使用できません。コミュニティ Mod から zip としてインストールしてください。"
+  },
+  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
+    "message": "星系間戦争の銀河マップに初めて入った後で、サーバー Mod が変更されました。戦闘ではその時点で PA が読み込んだユニットリストが使われるため、ユニットが欠けている可能性があります。PA を再起動してから、戦闘を開始してください。"
+  }
+}

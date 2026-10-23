@@ -474,7 +474,7 @@
     }
 
     try {
-      progress.stage(loc(key));
+      progress.stage(loc(key), { key: key });
     } catch (e) {
       ns.log("progress report failed " + ((e && e.message) || e));
     }

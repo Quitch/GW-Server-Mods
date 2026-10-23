@@ -1,0 +1,53 @@
+{
+  "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.": {
+    "message": "另一個模組已從戰鬥設定中移除了伺服器模組。戰鬥可能會在沒有它們的情況下開始。請停用其他銀河戰爭模組，然後重新開始。"
+  },
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
+    "message": "社群模組未啟用。伺服器模組無法在銀河戰爭中載入。請在 MODS 選單中啟用社群模組，然後重新啟動 PA。"
+  },
+  "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods 無法接入戰鬥連線流程。伺服器模組可能無法載入。請更新 GW Server Mods，然後重新啟動 PA。"
+  },
+  "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods 無法接入戰鬥啟動流程。伺服器模組可能無法載入。請更新 GW Server Mods，然後重新啟動 PA。"
+  },
+  "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.": {
+    "message": "GW Server Mods 無法告知主機你正在執行哪些伺服器模組。主機無法檢查你的模組。請離開遊戲，重新啟動 PA，然後再次加入。"
+  },
+  "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.": {
+    "message": "GW Server Mods 無法告知其他玩家本場戰鬥需要哪些伺服器模組。沒有這些模組的玩家可能會加入。請重新啟動 PA，然後重新主持戰鬥。"
+  },
+  "Mounting server mods": {
+    "message": "正在啟用伺服器模組"
+  },
+  "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.": {
+    "message": "只會載入一個派系的單位。多個伺服器模組各自帶有單位清單，而 PA 拒絕了合併後的清單。請重新啟動 PA，然後重新開始戰鬥。如果此訊息再次出現，請只啟用一個派系伺服器模組。"
+  },
+  "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.": {
+    "message": "PA 未註冊伺服器模組的模型與材質。模組單位可能無法顯示。請重新啟動 PA。如果此訊息再次出現，請附上 PA 記錄檔回報。"
+  },
+  "Registering server mod content": {
+    "message": "正在註冊伺服器模組內容"
+  },
+  "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.": {
+    "message": "伺服器模組已載入，但 PA 無法讀取其檔案。模組單位可能缺失。請重新啟動 PA。如果此訊息再次出現，請重新安裝伺服器模組。"
+  },
+  "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
+    "message": "伺服器模組已載入，但 PA 可能會在戰鬥開始前將其卸載。請更新 GW Server Mods 和社群模組，然後重新啟動 PA。"
+  },
+  "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
+    "message": "伺服器模組已載入，但合作模式無法在玩家之間比較它們。使用不同模組的玩家可能會加入。請更新 GW Server Mods 和社群模組。"
+  },
+  "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.": {
+    "message": "此伺服器模組未能載入。其 zip 檔案可能已損壞。請在社群模組中解安裝它，然後重新安裝。"
+  },
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.": {
+    "message": "此伺服器模組已啟用，但其 zip 檔案尚未下載。請開啟社群模組下載它，或將其停用。"
+  },
+  "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
+    "message": "此伺服器模組以資料夾形式安裝。銀河戰爭無法使用它。請透過社群模組以 zip 形式安裝。"
+  },
+  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
+    "message": "你首次進入銀河戰爭星圖後，伺服器模組發生了變化。戰鬥會沿用 PA 當時讀取的單位清單，因此可能缺少單位。請重新啟動 PA，然後開始戰鬥。"
+  }
+}
