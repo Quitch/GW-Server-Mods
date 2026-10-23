@@ -347,11 +347,11 @@ describe("which connects install the hooks", () => {
     });
 
     assert.equal(hooked(fixture), false);
-    assert.equal(
-      fixture.console.lines.log.includes(
-        "[GW-SM] server mod scene list not cleared"
+    assert.match(
+      fixture.console.lines.log.find((line) =>
+        line.startsWith("[GW-SM] server mod scene list not cleared")
       ),
-      true
+      /\{"error":"TypeError: .*"\}$/
     );
   });
 });

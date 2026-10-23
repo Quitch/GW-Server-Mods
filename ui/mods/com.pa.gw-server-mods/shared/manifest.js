@@ -370,7 +370,7 @@
       localStorage.removeItem(SCENES_KEY);
       sessionStorage.removeItem(SCENES_KEY);
     } catch (e) {
-      ns.log("server mod scene list not cleared");
+      ns.log("server mod scene list not cleared", { error: String(e) });
     }
   }
 
