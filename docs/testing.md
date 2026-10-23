@@ -51,7 +51,9 @@ Consequences worth knowing:
   asks for. `$.ajaxCalls` records every request, `cache` flag included.
   `$.when` and `then` identify a promise by a **`promise` method**, exactly as
   jQuery 2.1.4 does, so an engine promise given to either is read as a plain value
-  and never waited for. `test/promise.test.js` pins that. Also exported:
+  and never waited for. A `then` fail handler's plain return value rejects the
+  chained promise, as in jQuery 2.1.4; only a returned jQuery promise can resolve
+  it. `test/promise.test.js` pins both. Also exported:
   `enginePromise()`, an object with `then`, `resolve` and `reject` and none of
   jQuery's methods — the shape every `api.*` call returns. Hold one pending to
   prove the code under test waits for it.
