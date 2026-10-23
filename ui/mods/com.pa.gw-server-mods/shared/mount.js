@@ -739,9 +739,21 @@
     }
 
     var timing = { started: Date.now(), stages: {} };
+    var mods = [];
 
-    return Promise.resolve(ns.manifest.load()).then(function () {
-      var mods = ns.manifest.activeServerMods();
+    // See design.md.
+    function runFailed(error) {
+      ns.log(
+        "mount run failed " +
+          ((error && (error.stack || error.message)) || JSON.stringify(error))
+      );
+      settle(false, mods, timing);
+
+      return false;
+    }
+
+    var mounting = Promise.resolve(ns.manifest.load()).then(function () {
+      mods = ns.manifest.activeServerMods();
 
       ns.manifest.rememberScenes(mods);
 
@@ -774,6 +786,8 @@
           : mountForBattle(mods, withContent, generation, timing);
       });
     });
+
+    return mounting.then(undefined, runFailed);
   }
 
   // A single unmount reaches here through two wrappers, and a full cycle costs

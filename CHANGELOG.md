@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## Unreleased
+
+- When mounting the server mods fails, the PA log now records why wherever Galactic War mounts them, not only after the Fight button
+
 ## v1.5.0 - 2026-10-17
 
 - The galaxy map is ready about 2 seconds sooner each time you enter it, including after a battle and when joining or hosting co-op: server mods that are still mounted from the previous screen are no longer mounted a second time

@@ -131,6 +131,126 @@ describe("mount.run", () => {
     assert.equal(fixture.cmm.calls.mountServerMods, 0);
   });
 
+  // Its callers drop a rejection unlogged, so the run logs the reason itself
+  // and settles as not mounted. See design.md.
+  it("resolves false, logs why and settles when a battle run throws", async () => {
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => {
+          throw new Error("mountServerMods threw");
+        },
+      },
+    });
+
+    assert.equal(await run(fixture, { battle: true }), false);
+
+    const state = fixture.ns.mount.state();
+    assert.equal(state.mounted, false);
+    assert.equal(state.sequence, 1);
+    assert.equal(typeof state.at, "number");
+    assert.deepEqual(
+      state.mods.map((entry) => entry.identifier),
+      ["com.example.server"]
+    );
+    const lines = fixture.console.lines.log;
+    assert.equal(
+      lines
+        .at(-2)
+        .startsWith("[GW-SM] mount run failed Error: mountServerMods threw"),
+      true
+    );
+    assert.match(
+      lines.at(-1),
+      /^\[GW-SM\] mounted server mods \{"ok":false,"count":1,/
+    );
+  });
+
+  it("resolves false and settles when a root-only run throws", async () => {
+    const fixture = scene();
+    fixture.ns.manifest.pairedClientMods = () => {
+      throw { code: "paired" };
+    };
+
+    assert.equal(await run(fixture, { rootOnly: true }), false);
+    assert.equal(fixture.ns.mount.state().mounted, false);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        '[GW-SM] mount run failed {"code":"paired"}'
+      ),
+      true
+    );
+  });
+
+  it("resolves false and settles with no mods when the manifest read rejects", async () => {
+    const fixture = scene();
+    fixture.ns.manifest.load = () => rejected("unreadable");
+
+    assert.equal(await run(fixture), false);
+    assert.deepEqual(fixture.ns.mount.state().mods, []);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        '[GW-SM] mount run failed "unreadable"'
+      ),
+      true
+    );
+  });
+
+  it("starts a fresh run after one that failed", async () => {
+    let throws = true;
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => {
+          if (throws) {
+            throw new Error("once");
+          }
+          return resolved();
+        },
+      },
+    });
+
+    const failed = run(fixture);
+    assert.equal(await failed, false);
+
+    throws = false;
+    const next = run(fixture);
+    assert.notEqual(next, failed);
+    assert.equal(await next, true);
+    assert.equal(fixture.ns.mount.state().mounted, true);
+    assert.equal(fixture.ns.mount.sequence(), 2);
+  });
+
+  // The outer wrapper reads the sequence to tell whether the inner one
+  // already remounted; a failed run counts, so it is not run twice.
+  it("counts a failed run for the hooks, so one teardown runs it once", async () => {
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => {
+          throw new Error("mountServerMods threw");
+        },
+      },
+    });
+    fixture.ns.hooks.install();
+    const inner = fixture.api.file.unmountAllMemoryFiles;
+    fixture.api.file.unmountAllMemoryFiles = function () {
+      return inner();
+    };
+
+    let outcome;
+    fixture.api.file.unmountAllMemoryFiles().then((value) => {
+      outcome = value;
+    });
+    await flush();
+
+    assert.equal(fixture.cmm.calls.mountServerMods, 1);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+    assert.equal(outcome, true);
+  });
+
   it("mounts, registers, merges, classifies and verifies one zip mod", async () => {
     const fixture = scene();
     const reported = stages(fixture);
