@@ -183,6 +183,29 @@ describe("mount.run", () => {
     );
   });
 
+  it("still settles when the reason cannot be stringified", async () => {
+    const circular = { code: "loop" };
+    circular.self = circular;
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => {
+          throw circular;
+        },
+      },
+    });
+
+    assert.equal(await run(fixture), false);
+    assert.equal(fixture.ns.mount.state().mounted, false);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] mount run failed [object Object]"
+      ),
+      true
+    );
+  });
+
   it("resolves false and settles with no mods when the manifest read rejects", async () => {
     const fixture = scene();
     fixture.ns.manifest.load = () => rejected("unreadable");

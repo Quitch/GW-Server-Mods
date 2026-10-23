@@ -743,10 +743,17 @@
 
     // See design.md.
     function runFailed(error) {
-      ns.log(
-        "mount run failed " +
-          ((error && (error.stack || error.message)) || JSON.stringify(error))
-      );
+      var reason;
+
+      // What another mod throws may be circular, and stringifying it throws.
+      try {
+        reason =
+          (error && (error.stack || error.message)) || JSON.stringify(error);
+      } catch (e) {
+        reason = Object.prototype.toString.call(error);
+      }
+
+      ns.log("mount run failed " + reason);
       settle(false, mods, timing);
 
       return false;
