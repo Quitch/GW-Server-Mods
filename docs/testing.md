@@ -52,10 +52,15 @@ Consequences worth knowing:
   `$.when` and `then` identify a promise by a **`promise` method**, exactly as
   jQuery 2.1.4 does, so an engine promise given to either is read as a plain value
   and never waited for. A `then` fail handler's plain return value rejects the
-  chained promise, as in jQuery 2.1.4; only a returned jQuery promise can resolve
-  it. Handlers run in the order they were added, `always` among them, with the
-  promise as `this`. A handler that throws is not caught: the error leaves the
-  `resolve()` or `reject()` that fired it, and nothing after it in the list, or
+  chained promise, as in jQuery 2.1.4; only a returned object with a `promise`
+  method, adopted through its `done` and `fail`, can resolve it. Handlers run in
+  the order they were added, `always` among them, with the promise as `this`;
+  `$.when` of several inputs resolves with the inputs' contexts as `this`, and
+  with an array for an input that settled with several values. `done`, `fail`
+  and `always` return what they were called on, so a chain can go on to
+  `resolve()`. A handler that throws is not caught: the error leaves the call that
+  ran it - `resolve()`, `reject()`, or a `done`, `fail`, `always` or `then` on
+  a deferred that has already settled - and nothing after it in the list, or
   added later, runs. `test/promise.test.js` pins all of this. Also exported:
   `enginePromise()`, an object with `then`, `resolve` and `reject` and none of
   jQuery's methods — the shape every `api.*` call returns. Hold one pending to

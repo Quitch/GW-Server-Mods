@@ -271,6 +271,84 @@ describe("jQuery 2.1.4's promise test", () => {
     assert.equal(seen.chained, chained);
   });
 
+  it("throws from a handler added once settled, and runs nothing after it", () => {
+    const $ = createFakeJQuery();
+    const source = $.Deferred().resolve();
+    const error = new Error("handler threw");
+    const seen = [];
+
+    assert.throws(
+      () =>
+        source.done(() => {
+          throw error;
+        }),
+      error
+    );
+    source.done(() => seen.push("done"));
+    source.always(() => seen.push("always"));
+
+    assert.deepEqual(seen, []);
+  });
+
+  it("returns the deferred from done, fail and always, so a chain can settle it", () => {
+    const $ = createFakeJQuery();
+    const seen = [];
+
+    $.Deferred()
+      .done(() => seen.push("done"))
+      .fail(() => seen.push("fail"))
+      .always(() => seen.push("always"))
+      .resolve();
+
+    assert.deepEqual(seen, ["done", "always"]);
+  });
+
+  it("runs always and fail handlers in the order they were added", () => {
+    const $ = createFakeJQuery();
+    const deferred = $.Deferred();
+    const seen = [];
+
+    deferred.always(() => seen.push("always"));
+    deferred.done(() => seen.push("done"));
+    deferred.fail(() => seen.push("fail"));
+    deferred.reject();
+
+    assert.deepEqual(seen, ["always", "fail"]);
+  });
+
+  it("resolves $.when of several inputs with their contexts and every value", () => {
+    const $ = createFakeJQuery();
+    const first = $.Deferred();
+    const second = $.Deferred();
+    const seen = {};
+
+    $.when(first.promise(), "plain", second.promise()).done(function () {
+      seen.this = this;
+      seen.values = Array.prototype.slice.call(arguments);
+    });
+    second.resolve("one", "two");
+    first.resolve("only");
+
+    assert.equal(seen.this.length, 3);
+    assert.equal(seen.this[0], first.promise());
+    assert.equal(seen.this[1], undefined);
+    assert.equal(seen.this[2], second.promise());
+    assert.deepEqual(seen.values, ["only", "plain", ["one", "two"]]);
+  });
+
+  it("rejects $.when of several inputs with the first rejection", () => {
+    const $ = createFakeJQuery();
+    const first = $.Deferred();
+    const seen = [];
+
+    $.when(first.promise(), $.Deferred().promise()).fail((error) =>
+      seen.push(error)
+    );
+    first.reject("refused");
+
+    assert.deepEqual(seen, ["refused"]);
+  });
+
   it("runs always and done handlers in the order they were added", () => {
     const $ = createFakeJQuery();
     const deferred = $.Deferred();
