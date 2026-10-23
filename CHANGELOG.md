@@ -6,6 +6,7 @@
 - When mounting the server mods fails, the PA log now records why wherever Galactic War mounts them, not only after the Fight button
 - Skirmishes with server mods active start about 10 seconds sooner: GW Server Mods no longer mounts every server mod a second time while connecting to a game outside Galactic War
 - Fixed joining a multiplayer game outside Galactic War loading the interface scripts of server mods that only you have enabled, which the host's game does not run
+- Fixed co-op Galactic War battles loading, for a joining player, the interface scripts of server mods that only that player has enabled
 
 ## v1.5.0 - 2026-10-17
 

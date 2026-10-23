@@ -135,6 +135,7 @@ describe("which connects install the hooks", () => {
             {
               gw_server_mods_scenes: SCENES,
               gw_server_mods_not_gw_battle: "true",
+              gw_server_mods_viewer_host_mods: JSON.stringify(["com.old"]),
             },
             localValues
           )
@@ -164,6 +165,10 @@ describe("which connects install the hooks", () => {
       false
     );
     assert.equal(fixture.ns.manifest.gwBattle(), false);
+    assert.equal(
+      "gw_server_mods_viewer_host_mods" in fixture.ctx.localStorage.store,
+      false
+    );
     assert.deepEqual(fixture.ns.manifest.scenes("live_game"), []);
     assert.equal(
       fixture.console.lines.log.includes(
@@ -183,6 +188,12 @@ describe("which connects install the hooks", () => {
       assert.equal(
         "gw_server_mods_not_gw_battle" in fixture.ctx.localStorage.store,
         false,
+        mode
+      );
+      // A viewer's reconnect is asked for no manifest, so the list must stay.
+      assert.equal(
+        "gw_server_mods_viewer_host_mods" in fixture.ctx.localStorage.store,
+        true,
         mode
       );
       assert.equal(

@@ -320,6 +320,56 @@ describe("the manifest request handler", () => {
     );
   });
 
+  // The viewer's battles run the host's server mods. See design.md.
+  it("keeps only the server mods the host published in the viewer's scene list", () => {
+    const A = "coui://ui/mods/a/live_game.js";
+    const B = "coui://ui/mods/b/live_game.js";
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [
+          mod({ identifier: "com.a", scenes: { live_game: [A] } }),
+          mod({ identifier: "com.b", scenes: { live_game: [B] } }),
+        ],
+      },
+    });
+    fixture.ns.manifest.rememberScenes(fixture.ns.manifest.activeServerMods());
+    assert.deepEqual(fixture.ns.manifest.scenes("live_game"), [A, B]);
+
+    fixture.ctx.handlers.request_client_mod_manifest({
+      required_identifiers: ["Com.A", "com.client"],
+    });
+
+    assert.deepEqual(
+      JSON.parse(
+        fixture.ctx.localStorage.store.gw_server_mods_viewer_host_mods
+      ),
+      ["com.a", "com.client"]
+    );
+    assert.deepEqual(
+      JSON.parse(fixture.ctx.localStorage.store.gw_server_mods_scenes),
+      { live_game: [A] }
+    );
+  });
+
+  it("still runs the stock handler when the scene list cannot be filtered", () => {
+    const fixture = scene();
+    fixture.ns.manifest.viewHost = () => {
+      throw new Error("filter failed");
+    };
+
+    fixture.ctx.handlers.request_client_mod_manifest({
+      required_identifiers: ["com.a"],
+    });
+
+    assert.equal(fixture.request.calls.length, 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] host server mods not applied filter failed"
+      ),
+      true
+    );
+  });
+
   it("ignores a request without a required list and hands out copies", () => {
     const fixture = scene();
 
