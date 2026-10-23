@@ -11,11 +11,13 @@
     at: 0,
     mods: [],
     sequence: 0,
+    generation: null,
   };
 
   var running = null;
   var runningWithContent = false;
   var runningRootOnly = false;
+  var runningTicket = null;
 
   // Root mounts are dropped by every unmountAllMemoryFiles, and the hooks bump
   // the generation as each teardown starts, so a run compares the generation
@@ -554,12 +556,15 @@
     });
   }
 
-  function settle(ok, mods, timing) {
+  // generation: the one the run read, or null for a run that failed before it
+  // read one.
+  function settle(ok, mods, timing, generation) {
     state = {
       mounted: ok,
       at: Date.now(),
       mods: mods,
       sequence: state.sequence + 1,
+      generation: generation,
     };
 
     ns.log("mounted server mods", {
@@ -598,7 +603,7 @@
         ]);
       })
       .then(function () {
-        settle(roots.ok, mods, timing);
+        settle(roots.ok, mods, timing, generation);
 
         return roots.ok;
       });
@@ -639,7 +644,7 @@
         return timed(timing, "verify", verify(mods));
       })
       .then(function (ok) {
-        settle(ok, mods, timing);
+        settle(ok, mods, timing, generation);
 
         return ok;
       });
@@ -723,7 +728,14 @@
     });
   }
 
-  function startMounts(mods, rootOnly, withContent, afterModuleLoads, timing) {
+  function startMounts(
+    mods,
+    rootOnly,
+    withContent,
+    afterModuleLoads,
+    timing,
+    ticket
+  ) {
     // Before the first mountAtRoot, while the base list is still readable.
     var waits = [captureVanillaUnits()];
 
@@ -736,6 +748,8 @@
       // waiting: a teardown in between has dropped the mounts it would check.
       var generation = rootGeneration;
 
+      ticket.generation = generation;
+
       return rootOnly
         ? mountRootOnly(mods, withContent, generation, timing)
         : mountForBattle(mods, withContent, generation, timing);
@@ -744,7 +758,7 @@
 
   // Repeatable: Galactic War tears the mounts down more than once per battle.
   // remountContent: false skips the content remount, which blanks the scene.
-  function runOnce(options) {
+  function runOnce(options, ticket) {
     var withContent = !options || options.remountContent !== false;
     var rootOnly = !!(options && options.rootOnly);
 
@@ -773,7 +787,7 @@
       }
 
       ns.log("mount run failed " + reason);
-      settle(false, mods, timing);
+      settle(false, mods, timing, ticket.generation);
 
       return false;
     }
@@ -784,13 +798,15 @@
       ns.manifest.rememberScenes(mods);
 
       if (!mods.length) {
+        ticket.generation = rootGeneration;
+
         // The referee reads the base list for a battle with none, but an empty
         // list read before Community Mods has its store is not evidence.
         if (!rootOnly && options && options.battle && ns.manifest.storeRead()) {
           checkPinnedUnitList("");
         }
 
-        settle(true, [], timing);
+        settle(true, [], timing, ticket.generation);
 
         return true;
       }
@@ -800,7 +816,8 @@
         rootOnly,
         withContent,
         !!(options && options.afterModuleLoads),
-        timing
+        timing,
+        ticket
       );
     });
 
@@ -815,7 +832,8 @@
   // queued rather than started, since two runs must not overlap their mounts.
   // A root-only run in flight is the other exception for a battle caller: it
   // merged nothing and made no /server_mods/<id>/ mounts, so only another
-  // root-only caller may share it.
+  // root-only caller may share it. So may no caller a run that read a
+  // generation a teardown has since moved past: its mounts are gone.
   function run(options) {
     var withContent = !options || options.remountContent !== false;
     var rootOnly = !!(options && options.rootOnly);
@@ -823,20 +841,23 @@
     if (
       running &&
       (runningWithContent || !withContent) &&
-      (!runningRootOnly || rootOnly)
+      (!runningRootOnly || rootOnly) &&
+      (runningTicket.generation === null ||
+        runningTicket.generation === rootGeneration)
     ) {
       return running;
     }
 
     var previous = running;
+    var ticket = { generation: null };
     var current;
 
     if (previous) {
       current = ns.settled([previous]).then(function () {
-        return runOnce(options);
+        return runOnce(options, ticket);
       });
     } else {
-      current = runOnce(options);
+      current = runOnce(options, ticket);
     }
 
     // jQuery on the way out: a caller's $.when cannot see a native promise any
@@ -857,6 +878,7 @@
     running = current;
     runningWithContent = withContent;
     runningRootOnly = rootOnly;
+    runningTicket = ticket;
     current.then(clear, clear);
 
     return current;

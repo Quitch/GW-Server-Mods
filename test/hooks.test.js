@@ -15,19 +15,23 @@ const { flush, loadFile } = require("../scripts/lib/scene-loader.js");
 function scene(options) {
   const fixture = sharedScene(options);
   const runs = [];
-  let sequence = 0;
+  let generation = 1;
+  let settled = null;
   const events = [];
   fixture.ns.mount = {
     run: (opts) => {
       runs.push(opts);
-      sequence += 1;
+      settled = generation;
       return resolved(true);
     },
-    sequence: () => sequence,
-    bump: () => {
-      sequence += 1;
+    generation: () => generation,
+    state: () => ({ generation: settled }),
+    // A run that read `at` settles, as one in flight across a teardown does.
+    settle: (at) => {
+      settled = at;
     },
     invalidate: () => {
+      generation += 1;
       events.push("invalidate");
     },
     beforeContentRemount: () => {
@@ -300,7 +304,6 @@ describe("the unmount accessor", () => {
     const inner = fixture.api.file.unmountAllMemoryFiles;
 
     fixture.api.file.unmountAllMemoryFiles = function () {
-      fixture.ns.mount.bump();
       return inner();
     };
     let outcome;
@@ -338,7 +341,25 @@ describe("the unmount accessor", () => {
     assert.equal(settled, true);
   });
 
-  // The sequence guard is read when the teardown settles, so two teardowns in
+  it("remounts when a run that started before the teardown settles during it", async () => {
+    const fixture = scene({
+      apiOptions: {
+        unmountAllMemoryFiles: () => {
+          fixture.ns.mount.settle(stale);
+          return resolved();
+        },
+      },
+    });
+    const stale = fixture.ns.mount.generation();
+    fixture.ns.hooks.install();
+
+    fixture.api.file.unmountAllMemoryFiles();
+    await flush();
+
+    assert.equal(fixture.runs.length, 1);
+  });
+
+  // The generation guard is read when the teardown settles, so two teardowns in
   // one tick share the one remount rather than running it twice. That is the
   // same guard that stops a nested wrapper remounting again, and a remount
   // costs seconds.
