@@ -53,6 +53,15 @@
   // hand the store is read instead, and that load lands after the scene has
   // bound - late, but the scripts still run.
   function load(scene) {
+    // Community Mods loads a skirmish's or a multiplayer game's own server mod
+    // UI, and this client's store can name mods that battle does not run.
+    if (!ns.manifest.gwBattle()) {
+      ns.log("not a Galactic War battle; server mod UI not loaded", {
+        scene: scene,
+      });
+      return [];
+    }
+
     if (typeof loadMods !== "function") {
       ns.log("loadMods unavailable; server mod UI not loaded", {
         scene: scene,

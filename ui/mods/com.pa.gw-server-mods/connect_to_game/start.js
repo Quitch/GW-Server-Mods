@@ -159,9 +159,11 @@
 
   try {
     if (isGwConnect()) {
+      ns.manifest.markGwBattle(true);
       ns.hooks.install();
     } else {
       // Community Mods loads this battle's server mod UI itself.
+      ns.manifest.markGwBattle(false);
       ns.manifest.forgetScenes();
       ns.log("not a Galactic War connect; hooks not installed");
     }

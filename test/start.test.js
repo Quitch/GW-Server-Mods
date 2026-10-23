@@ -131,7 +131,10 @@ describe("which connects install the hooks", () => {
           Object.assign({ gw_server_mods_scenes: SCENES }, sessionValues)
         ),
         localStorage: fakeSessionStorage(
-          Object.assign({ gw_server_mods_scenes: SCENES }, localValues)
+          Object.assign(
+            { gw_server_mods_scenes: SCENES, gw_server_mods_gw_battle: "true" },
+            localValues
+          )
         ),
       },
     });
@@ -157,6 +160,7 @@ describe("which connects install the hooks", () => {
       "gw_server_mods_scenes" in fixture.ctx.sessionStorage.store,
       false
     );
+    assert.equal(fixture.ns.manifest.gwBattle(), false);
     assert.deepEqual(fixture.ns.manifest.scenes("live_game"), []);
     assert.equal(
       fixture.console.lines.log.includes(
@@ -170,9 +174,17 @@ describe("which connects install the hooks", () => {
 
   it("installs them when this client starts a Galactic War server", () => {
     for (const mode of ["gw", "coop_gw", "gw_campaign", "coop%5Fgw"]) {
-      const fixture = connect("?action=start&mode=" + mode + "&local=true");
+      const fixture = connect(
+        "?action=start&mode=" + mode + "&local=true",
+        {},
+        { gw_server_mods_gw_battle: "false" }
+      );
 
       assert.equal(hooked(fixture), true, mode);
+      assert.equal(
+        fixture.ctx.localStorage.store.gw_server_mods_gw_battle,
+        "true"
+      );
       assert.equal(
         fixture.ctx.localStorage.store.gw_server_mods_scenes,
         SCENES
@@ -336,6 +348,22 @@ describe("which connects install the hooks", () => {
     const fixture = scene({ stubs: { location: undefined } });
 
     assert.equal(hooked(fixture), false);
+  });
+
+  it("logs rather than throws when the battle cannot be marked", () => {
+    const fixture = scene({
+      stubs: {
+        localStorage: fakeSessionStorage({}, { setItemThrows: true }),
+      },
+    });
+
+    assert.equal(hooked(fixture), true);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        '[GW-SM] Galactic War battle mark not stored {"error":"Error: QuotaExceededError"}'
+      ),
+      true
+    );
   });
 
   it("logs rather than throws when the scene list cannot be cleared", () => {

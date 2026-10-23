@@ -374,6 +374,31 @@
     }
   }
 
+  // Whether the battle this client is connecting to is a Galactic War one, set
+  // by every connect_to_game. localStorage for the same reason as the scene
+  // list: the battle panels read it.
+  var GW_BATTLE_KEY = "gw_server_mods_gw_battle";
+
+  function markGwBattle(gw) {
+    try {
+      if (gw) {
+        localStorage.setItem(GW_BATTLE_KEY, "true");
+      } else {
+        localStorage.removeItem(GW_BATTLE_KEY);
+      }
+    } catch (e) {
+      ns.log("Galactic War battle mark not stored", { error: String(e) });
+    }
+  }
+
+  function gwBattle() {
+    try {
+      return localStorage.getItem(GW_BATTLE_KEY) === "true";
+    } catch (e) {
+      return false;
+    }
+  }
+
   // localStorage first, then the sessionStorage a previous build of this mod
   // wrote, so an upgrade mid-session still finds a list.
   function storedScenes() {
@@ -416,6 +441,8 @@
     scenes: scenes,
     rememberScenes: rememberScenes,
     forgetScenes: forgetScenes,
+    markGwBattle: markGwBattle,
+    gwBattle: gwBattle,
     modRoot: modRoot,
     pairedClientMods: pairedClientMods,
     detectClientRelevance: function (mods) {
