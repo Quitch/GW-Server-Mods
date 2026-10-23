@@ -21,95 +21,99 @@ function isJqPromise(value) {
 function Deferred() {
   let state = "pending";
   let args = [];
-  const done = [];
-  const fail = [];
-  const always = [];
+  let context;
+  let firing = false;
+  // One list in registration order, as jQuery's `always` is `done` plus `fail`.
+  const handlers = [];
 
-  function fire(list) {
-    while (list.length) {
-      list.shift().apply(null, args);
+  // A throw leaves `firing` set for good, as in jQuery. See docs/testing.md.
+  function fire() {
+    firing = true;
+    while (handlers.length) {
+      const handler = handlers.shift();
+      if (handler.on === "always" || handler.on === state) {
+        handler.fn.apply(context, args);
+      }
     }
+    firing = false;
   }
 
-  function settle(next, list) {
-    return function () {
+  function settleWith(next) {
+    return function (withContext, withArgs) {
       if (state !== "pending") {
         return deferred;
       }
       state = next;
-      args = Array.prototype.slice.call(arguments);
-      fire(list);
-      fire(always);
+      context = withContext;
+      args = Array.prototype.slice.call(withArgs || []);
+      fire();
       return deferred;
     };
   }
 
-  function on(list, when) {
-    return function (fn) {
-      if (typeof fn !== "function") {
-        return promise;
-      }
-      if (state === "pending") {
-        list.push(fn);
-      } else if (when === "always" || state === when) {
-        fn.apply(null, args);
-      }
-      return promise;
+  // Handlers run with this deferred's promise as `this`, unless the settle
+  // call was made on something else, as in jQuery.
+  function settle(withMethod) {
+    return function () {
+      return withMethod(this === deferred ? promise : this, arguments);
     };
   }
 
+  function on(when) {
+    return function (fn) {
+      if (typeof fn === "function") {
+        handlers.push({ on: when, fn: fn });
+        if (state !== "pending" && !firing) {
+          fire();
+        }
+      }
+      return this;
+    };
+  }
+
+  // jQuery 2.1.4's `then`. See docs/testing.md.
   function then(onDone, onFail) {
     const next = Deferred();
 
-    // A plain return value settles `next` the way the source settled, so a
-    // fail handler's return rejects. jQuery 2.1.4 does not recover there.
     function forward(handler, action) {
       return function () {
+        const nextContext = this === promise ? next.promise() : this;
+
         if (typeof handler !== "function") {
-          action.apply(next, arguments);
+          next[action](nextContext, arguments);
           return;
         }
-        let result;
-        try {
-          result = handler.apply(null, arguments);
-        } catch (e) {
-          next.reject(e);
-          return;
-        }
-        if (isJqPromise(result)) {
-          // Not next.resolve itself: as a handler it would return the
-          // deferred, a thenable, and an already settled chain would recurse.
-          result.then(
-            function () {
-              next.resolve.apply(next, arguments);
-            },
-            function () {
-              next.reject.apply(next, arguments);
-            }
-          );
+        const returned = handler.apply(this, arguments);
+        if (isJqPromise(returned)) {
+          returned.promise().done(next.resolve).fail(next.reject);
         } else {
-          action.call(next, result);
+          next[action](nextContext, [returned]);
         }
       };
     }
 
-    promise.done(forward(onDone, next.resolve));
-    promise.fail(forward(onFail, next.reject));
+    promise.done(forward(onDone, "resolveWith"));
+    promise.fail(forward(onFail, "rejectWith"));
     return next.promise();
   }
 
   const promise = {
-    done: on(done, "resolved"),
-    fail: on(fail, "rejected"),
-    always: on(always, "always"),
+    done: on("resolved"),
+    fail: on("rejected"),
+    always: on("always"),
     then: then,
     state: () => state,
     promise: () => promise,
   };
 
+  const resolveWith = settleWith("resolved");
+  const rejectWith = settleWith("rejected");
+
   const deferred = Object.assign({}, promise, {
-    resolve: settle("resolved", done),
-    reject: settle("rejected", fail),
+    resolve: settle(resolveWith),
+    reject: settle(rejectWith),
+    resolveWith: resolveWith,
+    rejectWith: rejectWith,
   });
 
   return deferred;
@@ -125,52 +129,48 @@ function rejected() {
   return deferred.reject.apply(deferred, arguments).promise();
 }
 
-// jQuery's $.when: one jQuery promise is returned as is, anything else with one
-// argument resolves to it, several settle together with one value per argument.
-// Anything without a `promise` method counts as already resolved, engine and
-// native promises included.
+// jQuery 2.1.4's $.when: one jQuery promise is returned as is, anything else
+// with one argument resolves to it, several settle together with one value per
+// argument. Anything without a `promise` method counts as already resolved,
+// engine and native promises included.
 function when() {
-  const inputs = Array.prototype.slice.call(arguments);
+  const values = Array.prototype.slice.call(arguments);
+  const length = values.length;
+  let remaining = length !== 1 || isJqPromise(values[0]) ? length : 0;
 
-  if (inputs.length === 1) {
-    return isJqPromise(inputs[0]) ? inputs[0].promise() : resolved(inputs[0]);
+  if (remaining === 1) {
+    return values[0].promise();
   }
 
   const deferred = Deferred();
-  const values = new Array(inputs.length);
-  let remaining = inputs.length;
+  const contexts = length > 1 ? new Array(length) : undefined;
 
-  function finish() {
-    deferred.resolve.apply(deferred, values);
+  if (length > 1) {
+    values.forEach(function (input, index) {
+      if (!isJqPromise(input)) {
+        remaining -= 1;
+        return;
+      }
+      input
+        .promise()
+        .done(function (value) {
+          contexts[index] = this;
+          values[index] =
+            arguments.length > 1
+              ? Array.prototype.slice.call(arguments)
+              : value;
+          remaining -= 1;
+          if (!remaining) {
+            deferred.resolveWith(contexts, values);
+          }
+        })
+        .fail(deferred.reject);
+    });
   }
 
   if (!remaining) {
-    finish();
-    return deferred.promise();
+    deferred.resolveWith(contexts, values);
   }
-
-  inputs.forEach(function (input, index) {
-    if (!isJqPromise(input)) {
-      values[index] = input;
-      remaining -= 1;
-      if (!remaining) {
-        finish();
-      }
-      return;
-    }
-    input.then(
-      function (value) {
-        values[index] = value;
-        remaining -= 1;
-        if (!remaining) {
-          finish();
-        }
-      },
-      function () {
-        deferred.reject.apply(deferred, arguments);
-      }
-    );
-  });
 
   return deferred.promise();
 }
