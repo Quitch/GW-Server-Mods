@@ -363,6 +363,17 @@
     return scenesCache;
   }
 
+  function forgetScenes() {
+    scenesCache = null;
+
+    try {
+      localStorage.removeItem(SCENES_KEY);
+      sessionStorage.removeItem(SCENES_KEY);
+    } catch (e) {
+      ns.log("server mod scene list not cleared", { error: String(e) });
+    }
+  }
+
   // localStorage first, then the sessionStorage a previous build of this mod
   // wrote, so an upgrade mid-session still finds a list.
   function storedScenes() {
@@ -404,6 +415,7 @@
     serverModInfo: serverModInfo,
     scenes: scenes,
     rememberScenes: rememberScenes,
+    forgetScenes: forgetScenes,
     modRoot: modRoot,
     pairedClientMods: pairedClientMods,
     detectClientRelevance: function (mods) {

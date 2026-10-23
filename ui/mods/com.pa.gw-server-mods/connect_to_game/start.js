@@ -9,6 +9,85 @@
     return _.isString(mode) && mode.substr(-2, 2).toLowerCase() === "gw";
   }
 
+  var GW_PLAY = "coui://ui/main/game/galactic_war/gw_play/gw_play.html";
+
+  function urlParam(name) {
+    var match = new RegExp("[?&]" + name + "=([^&#]*)").exec(
+      (root.location && root.location.search) || ""
+    );
+
+    if (!match) {
+      return null;
+    }
+
+    try {
+      return decodeURIComponent(match[1].replace(/\+/g, " "));
+    } catch (e) {
+      return match[1];
+    }
+  }
+
+  function parsed(text) {
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ko's session extender reads the engine's backup only when sessionStorage
+  // has nothing under the key. It writes the backup encoded, and writes the
+  // string "undefined" for a cleared value.
+  function session(key) {
+    var text = sessionStorage.getItem(key);
+
+    if (text) {
+      return parsed(text);
+    }
+
+    var backup = root.gSessionBackup && root.gSessionBackup[key];
+
+    if (!_.isString(backup) || backup === "undefined") {
+      return null;
+    }
+
+    var decoded = parsed(backup);
+
+    return decoded === null ? backup : decoded;
+  }
+
+  function fromGwPlay() {
+    var destination = session("connect_fail_destination");
+
+    return _.isString(destination) && _.startsWith(destination, GW_PLAY);
+  }
+
+  // See design.md.
+  function isGwConnect() {
+    var mode = urlParam("mode");
+
+    if (urlParam("action") === "start") {
+      return (
+        isGwMode(mode) ||
+        mode === "gw_campaign" ||
+        (mode === "loadsave" && fromGwPlay())
+      );
+    }
+
+    var setup = session("game_server_setup");
+
+    if (setup) {
+      return setup === "gw_campaign" || session("game_type") === "GalacticWar";
+    }
+
+    var reconnect =
+      parsed(localStorage.getItem("reconnect_to_game_info")) || {};
+
+    return (
+      reconnect.setup === "gw_campaign" || reconnect.game === "GalacticWar"
+    );
+  }
+
   function applyIdentifiers() {
     if (!model || !_.isFunction(model.gameModIdentifiers)) {
       return;
@@ -79,7 +158,13 @@
   }
 
   try {
-    ns.hooks.install();
+    if (isGwConnect()) {
+      ns.hooks.install();
+    } else {
+      // Community Mods loads this battle's server mod UI itself.
+      ns.manifest.forgetScenes();
+      ns.log("not a Galactic War connect; hooks not installed");
+    }
 
     if (!patchStartGame()) {
       ns.alarm("start_unavailable", { where: "api.net.startGame" });

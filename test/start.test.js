@@ -9,7 +9,13 @@ const assert = require("node:assert/strict");
 const { sharedScene } = require("../scripts/lib/shared-scene.js");
 const { mod } = require("../scripts/lib/fake-cmm.js");
 const { enginePromise, rejected } = require("../scripts/lib/fake-jquery.js");
-const { flush, loadFile } = require("../scripts/lib/scene-loader.js");
+const {
+  fakeSessionStorage,
+  flush,
+  loadFile,
+} = require("../scripts/lib/scene-loader.js");
+
+const GW_START = { search: "?action=start&mode=gw&content=PAExpansion1" };
 
 function observable(initial, options) {
   const opts = options || {};
@@ -32,7 +38,8 @@ function scene(options) {
         ajax: (url) =>
           url.endsWith("unit_list.json") ? JSON.stringify({ units: [] }) : "",
       },
-      opts
+      opts,
+      { stubs: Object.assign({ location: GW_START }, opts.stubs) }
     )
   );
   const runs = [];
@@ -110,6 +117,242 @@ describe("start installation", () => {
     loadFile(fixture.ctx, "connect_to_game/start.js");
 
     assert.match(fixture.console.lines.error[0], /^\[GW-SM\] TypeError/);
+  });
+});
+
+describe("which connects install the hooks", () => {
+  const SCENES = JSON.stringify({ live_game: ["coui://ui/mods/x/live.js"] });
+
+  function connect(search, sessionValues, localValues) {
+    return scene({
+      stubs: {
+        location: { search: search },
+        sessionStorage: fakeSessionStorage(
+          Object.assign({ gw_server_mods_scenes: SCENES }, sessionValues)
+        ),
+        localStorage: fakeSessionStorage(
+          Object.assign({ gw_server_mods_scenes: SCENES }, localValues)
+        ),
+      },
+    });
+  }
+
+  function hooked(fixture) {
+    return (
+      fixture.api.file.unmountAllMemoryFiles.__gwServerModsWrapped === true
+    );
+  }
+
+  function assertSkipped(fixture) {
+    assert.equal(hooked(fixture), false);
+    assert.equal(
+      fixture.cmm.remountClientMods.__gwServerModsWrapped,
+      undefined
+    );
+    assert.equal(
+      "gw_server_mods_scenes" in fixture.ctx.localStorage.store,
+      false
+    );
+    assert.equal(
+      "gw_server_mods_scenes" in fixture.ctx.sessionStorage.store,
+      false
+    );
+    assert.deepEqual(fixture.ns.manifest.scenes("live_game"), []);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] not a Galactic War connect; hooks not installed"
+      ),
+      true
+    );
+    assert.deepEqual(fixture.codes(), []);
+    assert.equal(fixture.api.net.startGame.__gwServerModsPatched, true);
+  }
+
+  it("installs them when this client starts a Galactic War server", () => {
+    for (const mode of ["gw", "coop_gw", "gw_campaign", "coop%5Fgw"]) {
+      const fixture = connect("?action=start&mode=" + mode + "&local=true");
+
+      assert.equal(hooked(fixture), true, mode);
+      assert.equal(
+        fixture.ctx.localStorage.store.gw_server_mods_scenes,
+        SCENES
+      );
+    }
+  });
+
+  it("skips them and forgets the scene list for any other start", () => {
+    for (const search of [
+      "?action=start&local=true&content=PAExpansion1",
+      "?action=start&mode=Config",
+      "?action=start&mode=loadsave&replayid=7",
+      "?action=start&mode=gw+campaign",
+    ]) {
+      assertSkipped(
+        connect(search, { game_server_setup: JSON.stringify("gw_campaign") })
+      );
+    }
+  });
+
+  it("installs them for a join the previous scene marked as Galactic War", () => {
+    const marks = [
+      [{ game_server_setup: JSON.stringify("gw_campaign") }, {}],
+      [
+        {
+          game_server_setup: JSON.stringify("game"),
+          game_type: JSON.stringify("GalacticWar"),
+        },
+        {},
+      ],
+      [
+        {},
+        { reconnect_to_game_info: JSON.stringify({ setup: "gw_campaign" }) },
+      ],
+      [{}, { reconnect_to_game_info: JSON.stringify({ game: "GalacticWar" }) }],
+    ];
+
+    for (const [sessionValues, localValues] of marks) {
+      const fixture = connect(
+        "?content=PAExpansion1",
+        sessionValues,
+        localValues
+      );
+
+      assert.equal(hooked(fixture), true, JSON.stringify(marks));
+    }
+  });
+
+  it("installs them when a Galactic War battle resumes from its save", () => {
+    const search = "?action=start&mode=loadsave&loadpath=gw.pas&local=true";
+
+    for (const page of [
+      "coui://ui/main/game/galactic_war/gw_play/gw_play.html",
+      "coui://ui/main/game/galactic_war/gw_play/gw_play.html?gw_campaign=1",
+    ]) {
+      assert.equal(
+        hooked(
+          connect(search, { connect_fail_destination: JSON.stringify(page) })
+        ),
+        true,
+        page
+      );
+    }
+
+    assertSkipped(
+      connect(search, {
+        connect_fail_destination: JSON.stringify(
+          "coui://ui/main/game/start/start.html"
+        ),
+      })
+    );
+  });
+
+  it("lets a set game_server_setup outrank the reconnect record", () => {
+    assertSkipped(
+      connect(
+        "?content=PAExpansion1",
+        {
+          game_server_setup: JSON.stringify("game"),
+          game_type: JSON.stringify("FreeForAll"),
+        },
+        {
+          reconnect_to_game_info: JSON.stringify({
+            setup: "gw_campaign",
+            game: "GalacticWar",
+          }),
+        }
+      )
+    );
+  });
+
+  it("reads the engine's session backup when sessionStorage has no value", () => {
+    function joined(backup, sessionValues, localValues) {
+      const fixture = scene({
+        stubs: {
+          location: { search: "?content=PAExpansion1" },
+          sessionStorage: fakeSessionStorage(sessionValues),
+          localStorage: fakeSessionStorage(localValues),
+          gSessionBackup: backup,
+        },
+      });
+      return hooked(fixture);
+    }
+
+    assert.equal(
+      joined({
+        game_server_setup: JSON.stringify("game"),
+        game_type: JSON.stringify("GalacticWar"),
+      }),
+      true
+    );
+    assert.equal(joined({ game_server_setup: "gw_campaign" }), true);
+    assert.equal(
+      joined(
+        { game_server_setup: "undefined" },
+        {},
+        { reconnect_to_game_info: JSON.stringify({ game: "GalacticWar" }) }
+      ),
+      true
+    );
+    assert.equal(joined({ game_server_setup: 7 }), false);
+    assert.equal(
+      joined(
+        { game_type: JSON.stringify("GalacticWar") },
+        {
+          game_server_setup: JSON.stringify("game"),
+          game_type: JSON.stringify("Waiting"),
+        }
+      ),
+      false
+    );
+    assert.equal(
+      joined(
+        { game_server_setup: JSON.stringify("gw_campaign") },
+        { game_server_setup: "null" }
+      ),
+      false
+    );
+  });
+
+  it("reads a malformed escape in the URL as it stands", () => {
+    assertSkipped(connect("?action=start&mode=%E0"));
+    assert.equal(hooked(connect("?action=start&mode=coop%E0gw")), true);
+  });
+
+  it("skips them for any other join", () => {
+    assertSkipped(
+      connect(
+        "?content=PAExpansion1",
+        {
+          game_server_setup: JSON.stringify("game"),
+          game_type: JSON.stringify("Waiting"),
+        },
+        { reconnect_to_game_info: JSON.stringify(false) }
+      )
+    );
+    assertSkipped(connect("", { game_server_setup: "{" }));
+  });
+
+  it("reads no URL as a join", () => {
+    const fixture = scene({ stubs: { location: undefined } });
+
+    assert.equal(hooked(fixture), false);
+  });
+
+  it("logs rather than throws when the scene list cannot be cleared", () => {
+    const fixture = scene({
+      stubs: {
+        location: { search: "?action=start" },
+        localStorage: { getItem: () => null },
+      },
+    });
+
+    assert.equal(hooked(fixture), false);
+    assert.match(
+      fixture.console.lines.log.find((line) =>
+        line.startsWith("[GW-SM] server mod scene list not cleared")
+      ),
+      /\{"error":"TypeError: .*"\}$/
+    );
   });
 });
 
