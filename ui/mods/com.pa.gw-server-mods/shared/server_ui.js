@@ -8,6 +8,7 @@
   }
 
   var loaded = [];
+  var skipLogged = false;
 
   function alreadyListed(scene, url) {
     var lists = [
@@ -53,6 +54,16 @@
   // hand the store is read instead, and that load lands after the scene has
   // bound - late, but the scripts still run.
   function load(scene) {
+    // This client's store can name server mods a battle outside Galactic War
+    // does not run. See design.md.
+    if (!ns.manifest.gwBattle()) {
+      if (!skipLogged) {
+        skipLogged = true;
+        ns.log("not a Galactic War battle; server mod UI not loaded");
+      }
+      return [];
+    }
+
     if (typeof loadMods !== "function") {
       ns.log("loadMods unavailable; server mod UI not loaded", {
         scene: scene,

@@ -366,6 +366,33 @@ Mods `gw_referee` state script reassigns it after the scene loads. `shared/hooks
 an accessor so whatever is assigned gets re-wrapped, which is deterministic where a repeating
 timer is a race that also gives up after a fixed number of tries.
 
+### Only for a Galactic War connect
+
+`connect_to_game` is also every skirmish, saved game, replay and multiplayer join, where
+Community Mods mounts the server mods through its own server channel. With the hooks
+installed there, each remount Community Mods makes for its companion client mods also
+mounted every active server zip at `/`, merged the unit list and verified it: an AI skirmish
+with ten server mods reached its lobby in 27 s instead of 17 s (measured 2026-10-23).
+`connect_to_game/start.js` therefore installs them only for a Galactic War connect:
+
+- A start (`action=start` in the URL) is Galactic War when its `mode` ends in `gw` (solo)
+  or is `gw_campaign` (co-op host). A battle resumed from its save starts as `loadsave`
+  (`gw_play.js:4960-4966`), like any saved game; it counts when `connect_fail_destination`
+  is the `gw_play` page, which `gw_play` sets before every connect and clears as it loads.
+- A join or reconnect URL carries only the content, so what the sending scene stored is
+  read instead, from sessionStorage, or from the engine's `gSessionBackup` where
+  sessionStorage has no value, as ko's session extender reads it. Where
+  `game_server_setup` is set, it decides: `gw_campaign` (an invite, a co-op restart), or a
+  `game_type` of `GalacticWar` (the server browser). The main menu's Reconnect clears it,
+  and only then does `reconnect_to_game_info` decide, by its `setup` or `game`; it outlives
+  the game it describes, so it must not outrank a current mark.
+
+A `connect_fail_destination` left from an earlier war errs towards installing them for a
+saved game, which is the old behaviour. Any other connect skips them, forgets the
+stored scene list, and marks the battle as not Galactic War for the battle panels' server
+mod UI (see [Server mod scene scripts](#server-mod-scene-scripts)): with no hooks, no mount
+runs to rewrite the list, and a list left by an earlier war would load in this battle.
+
 ### Mount generations
 
 Zip mounts at `/` are dropped by that same `unmountAllMemoryFiles`, and by nothing else in a
@@ -457,7 +484,7 @@ calls the real remount, and records the generation as registered
 current and its content registered, and skips both. This mod's own `remountContent()`
 also goes through the accessor; the check finds the mounts current and the call is just
 the real remount plus the record. The accessor exists only in the scenes that install the
-hooks - `gw_play` and `connect_to_game` - so `start`, the battle scenes and
+hooks - `gw_play` and a Galactic War `connect_to_game` - so `start`, the battle scenes and
 `community_mods` are untouched. `CommunityModsManager.mountClientMods` and `mountZipMods`
 are not wrapped instead: both are manager internals rather than the engine seam this mod
 already documents taking, and `mountClientMods` also runs in `start`.
@@ -465,6 +492,13 @@ already documents taking, and `mountClientMods` also runs in `start`.
 Both teardown wrappers call `mount.invalidate()` before the teardown itself runs, so the
 generation has moved before anything is dropped. The nested wrappers on one teardown bump
 it twice; nothing mounts between the two bumps, so that is harmless.
+
+Each wrapper remounts once its teardown settles, unless a run has already settled under the
+generation it left - the inner wrapper's, or one a caller started meanwhile. `state()` records
+the generation each run read: as its mounts started, as it read its mod list when it had none
+to mount, or `null` when it failed before either. A run that started before the teardown read
+an older generation, and its mounts are the ones the teardown dropped, so its settling inside
+the teardown does not stand in for the remount.
 
 `gw_play` passes `remountContent: false` on scene entry: the galaxy map has no
 renderer content to register. Its commander portraits, tech card art and unit icons are
@@ -486,7 +520,10 @@ rebuilt. It waits for the run in flight and then gets its own, queued rather tha
 so two runs never overlap their mounts. A root-only run in flight is the other exception:
 it merged no unit list and made no `/server_mods/<id>/` mounts, so a battle caller queues
 behind it the same way, while a root-only caller may still share a battle run, which does
-everything it needs and more. `gw_play/launch.js` therefore installs the hooks
+everything it needs and more. Nor is a run that read a generation a teardown has since moved
+past shared with anyone: its mounts are gone, so a later caller queues behind it too. A run
+that has not read its generation yet is still shared, since it reads the new one.
+`gw_play/launch.js` therefore installs the hooks
 with **no** options: an unmount mid-launch must still restore the catalogue. A run that
 would remount but finds the content already registered for its generation skips it
 silently, and does not report the "Registering" stage to the launch panel either.
@@ -496,7 +533,9 @@ silently, and does not report the "Registering" stage to the launch panel either
 Galactic War Overhaul shows a loading panel from the Fight click to the hand-off to
 `connect_to_game`, and exposes it as `model.gwoLaunchProgress`. This mod only reports
 into it: `mount.js` calls `stage()` when it starts mounting and again before the content
-remount. GWO owns the screen, so nothing here shows or hides it.
+remount. GWO owns the screen, so nothing here shows or hides it. Each call passes the
+localised text and the `!LOC:` key as `{ key: key }`, so a co-op viewer builds the line in its
+own language; a GWO older than the key ignores the second argument and shows the text.
 
 Two facts make that safe without a load-order contract in the code:
 
@@ -578,6 +617,37 @@ as its scene loads, before Community Mods has read its store, and that run sees 
 `community mods ready`. Written through, it would erase the list `gw_play` persisted and
 every battle scene would load nothing. Should the list be missing anyway, `serverUi.load`
 reads the store itself and loads late, after the scene has bound.
+
+All of this is for a Galactic War battle only. Elsewhere Community Mods loads the
+battle's own server mod UI, and this client's store names its own active server mods,
+which a game hosted by someone else need not run: in a multiplayer join, the store path
+would load the scripts of a server mod only this client has enabled into the host's game.
+So `connect_to_game/start.js` marks every connect in `localStorage`
+(`gw_server_mods_not_gw_battle`, set for a connect that is not Galactic War and removed for
+one that is, by the test in [Only for a Galactic War connect](#only-for-a-galactic-war-connect)),
+and `serverUi.load` loads nothing while it is set. The mark names the battle that is not
+Galactic War so that every failure falls back to the behaviour before it: a mark that
+cannot be written or read leaves the battle loading as before, and a profile that has never
+connected since has none. A connect that is not Galactic War also removes the scene list.
+
+Inside a co-op war the battle still runs the host's server mods, not the viewer's, and a
+viewer may join with a server mod the host does not run (see
+[Which server mods have to match](#which-server-mods-have-to-match)). So when the host's
+required list reaches a viewer's `connect_to_game`, `gate.js` stores it in `localStorage`
+(`gw_server_mods_viewer_host_mods`) through `manifest.viewHost`, which also rewrites the
+scene list at once. The server asks only viewers for a manifest, so that rewrite filters
+before the role is known. After it, every scene list this client writes keeps only the
+server mods the host published, and those that declare `galacticWarMod`, for as long as
+stock's `gw_campaign_role` session var reads `viewer`. The list lives in `localStorage`
+because a viewer goes from `gw_play` into each battle by the server's redirect, with no
+`connect_to_game` in between, and its `gw_play` mounts would otherwise widen the list
+again. A viewer's reconnect is asked for no new manifest, so a Galactic War connect keeps the
+list. A connect that is not Galactic War clears it, and a role other than `viewer` (solo,
+host, or none) ignores it, so a list left from an earlier co-op session filters nothing. The
+host publishes only its client-relevant server mods, so a server mod that ships battle scene
+scripts but only AI trees would lose them on a viewer; every server mod with battle scene
+scripts in the measured set (Bugs, Exiles, Experimentals, Thorosmen, Second Wave) also ships
+`pa/units`.
 
 Where it runs: `live_game` (`ui.js`, which also loads the `shared_build` share,
 because `build.js` consumed that list before any scene script ran),
@@ -682,6 +752,15 @@ by side (`content`, `merge` and the classification) overlap, so they do not sum 
 stage that was skipped reads as a few milliseconds. This is the instrument every
 performance claim about a launch is checked against, so it stays.
 
+A run whose sequence throws or rejects part way - `CommunityModsManager.mountServerMods()`
+throwing, say - ends the same way rather than rejecting: `mount run failed <reason>`, then
+that line with `"ok":false`, and it resolves `false` like a run whose probes failed.
+`connect_to_game/start.js` and `shared/hooks.js` would drop a rejection unlogged, so this is
+where the reason is recorded. It also settles `state()` and `sequence()`, which therefore
+count every run that ended. A failed run that read the current generation stands in for the
+remount like any other (see [Keeping the mounts](#keeping-the-mounts)), so one teardown does not
+run it twice.
+
 `api.debug.log` is not used and should not be. It is a forwarder -
 `Function.apply.call(console.log, console, arguments)` - so it truncates identically, and
 it adds two problems: every call is gated on a `debug_allow_logs` local setting that is
@@ -693,6 +772,51 @@ rather than pass multiple arguments.
 
 `cmm_unavailable` and `gate_unavailable` matter most - a partly installed guard is worse
 than none, because it looks like enforcement.
+
+## Translations
+
+Every player-facing string is a `!LOC:` key: the alarm wording, the banner's
+`GW Server Mods` prefix, the banner's punctuation, and the two launch stages. The game's own tables have none of
+them, so the mod ships its own through
+[Mod Translations](https://github.com/Quitch/Mod-Translations), which merges a mod's
+`translations/<lang>.json` into the store the stock `loc()` reads. `modinfo.json` lists it
+under `dependencies`, so Community Mods installs it with this mod. Without it, the text
+stays English.
+
+- `translations/en-US.json` is the catalog: every key, with `message` equal to the key and
+  a `description` for translators that names the file the key is in. The loader never
+  reads it, and it is left out of the release zip.
+- `translations/<lang>.json` holds one language, named for its folder under the game's
+  `ui/main/_i18n/locales/`. `de-AT` and `nl-BE` fall back to `de` and `nl`. The mod's
+  name is a proper noun and stays English, so the language files leave it out.
+- The banner is built from three format keys - `__name__: __alarms__`,
+  `__wording__ (__identifier__)` and `__first__  |  __next__` - so a language can use its
+  own punctuation: Japanese and Chinese take full-width colons, brackets and separators,
+  while Korean keeps the English ones. `shared/alarm.js` fills the placeholders itself in
+  one pass rather than through `loc()`'s options, because i18next fills them with
+  `String.replace`, which reads a `$` in an identifier as a pattern. A translated format
+  whose placeholders differ from the key's is not used: the banner falls back to the English
+  format rather than lose an alarm's text. Mod Translations lets a later mod's entry for the
+  same key replace this one, and the same fallback covers a replacement that drops one.
+- `test/translations.test.js` holds the file contract: the catalog's keys are exactly the
+  `!LOC:` literals under `ui/`, each language file's keys are in the catalog, and every
+  entry is one the loader accepts. A new or reworded string fails `verify` until the
+  catalog has it; the language files may lag, and show English for that string.
+
+`global_mod_list/translations.js` registers the folder `com.pa.gw-server-mods`, not the
+`-dev` identifier, because Mod Translations finds the files by that folder name. It runs
+from `global_mod_list` and from no scene list. A `global_mod_list` script runs on every
+page before the stock scene code, which is the only place early enough: by the time a
+scene-list script runs, the scene has translated its static HTML and cached some `loc()`
+results. That costs a synchronous read of the player's language file on every panel of
+every page, and a second for a regional locale such as `de-AT`, which falls back to `de`;
+English reads nothing. A language with no file reads a 404. Mod Translations' own README
+makes `global_mod_list` the only supported place, and GWO already pays the same cost.
+
+`global_mod_list` scripts run in Community Mods' priority order. Mod Translations has
+priority 50 and this mod the default 100, so `window.ModTranslations` exists when the
+script runs. Do not raise this mod's priority to GWO's 200 or above: the launch progress
+report relies on GWO loading later (see Launch progress).
 
 ## What this cannot fix
 
@@ -731,3 +855,7 @@ faked; whether the engine behaves as faked is verified by loading the game.
     `coui://pa/units/unit_list.json` holds the merged count before and after; then disable a
     faction in Community Mods and re-enable it, and the count must drop and come back;
     the battle mount after the change raises `unit_list_pinned`.
+11. An AI skirmish from `start` logs `not a Galactic War connect; hooks not installed` in
+    `connect_to_game` and no `mounted server mods` line there, and `gw_server_mods_scenes`
+    is gone from localStorage; a co-op viewer joining from the server browser logs
+    `remountClientMods wrapped` instead.

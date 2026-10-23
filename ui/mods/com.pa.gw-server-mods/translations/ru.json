@@ -1,0 +1,53 @@
+{
+  "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.": {
+    "message": "Другой мод убрал моды сервера из настроек битвы. Битва может начаться без них. Отключите другие моды для Галактической Войны и начните снова."
+  },
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
+    "message": "Моды сообщества не активны. Моды сервера не могут загрузиться в Галактической Войне. Включите Моды сообщества в меню MODS, затем перезапустите PA."
+  },
+  "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods не смог встроиться в подключение к битве. Моды сервера могут не загрузиться. Обновите GW Server Mods, затем перезапустите PA."
+  },
+  "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods не смог встроиться в запуск битвы. Моды сервера могут не загрузиться. Обновите GW Server Mods, затем перезапустите PA."
+  },
+  "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.": {
+    "message": "GW Server Mods не смог сообщить хосту, какие моды сервера у вас запущены. Хост не может проверить ваши моды. Выйдите из игры, перезапустите PA и подключитесь снова."
+  },
+  "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.": {
+    "message": "GW Server Mods не смог сообщить другим игрокам, какие моды сервера нужны для этой битвы. Могут подключиться игроки без них. Перезапустите PA и снова создайте битву."
+  },
+  "Mounting server mods": {
+    "message": "Загружаем моды сервера"
+  },
+  "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.": {
+    "message": "Загрузятся юниты только одной фракции. Несколько модов сервера содержат собственные списки юнитов, и PA отклонила объединённый список. Перезапустите PA, затем снова начните битву. Если сообщение появится снова, включите только один мод сервера с фракцией."
+  },
+  "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.": {
+    "message": "PA не зарегистрировала модели и текстуры модов сервера. Юниты из модов могут быть невидимы. Перезапустите PA. Если сообщение появится снова, сообщите о нём и приложите лог PA."
+  },
+  "Registering server mod content": {
+    "message": "Регистрируем содержимое модов сервера"
+  },
+  "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.": {
+    "message": "Моды сервера загружены, но PA не может прочитать их файлы. Юниты из модов могут отсутствовать. Перезапустите PA. Если сообщение появится снова, переустановите моды сервера."
+  },
+  "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
+    "message": "Моды сервера загружены, но PA может выгрузить их до начала битвы. Обновите GW Server Mods и Моды сообщества, затем перезапустите PA."
+  },
+  "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
+    "message": "Моды сервера загружены, но в кооперативе их нельзя сравнить между игроками. Могут подключиться игроки с другими модами. Обновите GW Server Mods и Моды сообщества."
+  },
+  "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.": {
+    "message": "Этот мод сервера не загрузился. Возможно, его zip-архив повреждён. Удалите его в Модах сообщества, затем установите снова."
+  },
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.": {
+    "message": "Этот мод сервера включён, но его zip-архив не загружен. Откройте Моды сообщества и загрузите его или отключите мод."
+  },
+  "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
+    "message": "Этот мод сервера установлен как папка. Галактическая Война не может его использовать. Установите его как zip-архив через Моды сообщества."
+  },
+  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
+    "message": "Ваши моды сервера изменились после того, как вы впервые открыли карту галактики Галактической Войны. Битвы используют список юнитов, который PA прочитала тогда, поэтому юниты могут отсутствовать. Перезапустите PA, затем начните битву."
+  }
+}

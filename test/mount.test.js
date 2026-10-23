@@ -127,8 +127,153 @@ describe("mount.run", () => {
     assert.equal(state.mounted, true);
     assert.deepEqual(state.mods, []);
     assert.equal(state.sequence, 1);
+    assert.equal(state.generation, 1);
     assert.equal(typeof state.at, "number");
     assert.equal(fixture.cmm.calls.mountServerMods, 0);
+  });
+
+  // Its callers drop a rejection unlogged, so the run logs the reason itself
+  // and settles as not mounted. See design.md.
+  it("resolves false, logs why and settles when a battle run throws", async () => {
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => {
+          throw new Error("mountServerMods threw");
+        },
+      },
+    });
+
+    assert.equal(await run(fixture, { battle: true }), false);
+
+    const state = fixture.ns.mount.state();
+    assert.equal(state.mounted, false);
+    assert.equal(state.sequence, 1);
+    assert.equal(typeof state.at, "number");
+    assert.deepEqual(
+      state.mods.map((entry) => entry.identifier),
+      ["com.example.server"]
+    );
+    const lines = fixture.console.lines.log;
+    assert.equal(
+      lines
+        .at(-2)
+        .startsWith("[GW-SM] mount run failed Error: mountServerMods threw"),
+      true
+    );
+    assert.match(
+      lines.at(-1),
+      /^\[GW-SM\] mounted server mods \{"ok":false,"count":1,/
+    );
+  });
+
+  it("resolves false and settles when a root-only run throws", async () => {
+    const fixture = scene();
+    fixture.ns.manifest.pairedClientMods = () => {
+      throw { code: "paired" };
+    };
+
+    assert.equal(await run(fixture, { rootOnly: true }), false);
+    assert.equal(fixture.ns.mount.state().mounted, false);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        '[GW-SM] mount run failed {"code":"paired"}'
+      ),
+      true
+    );
+  });
+
+  it("still settles when the reason cannot be stringified", async () => {
+    const circular = { code: "loop" };
+    circular.self = circular;
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => {
+          throw circular;
+        },
+      },
+    });
+
+    assert.equal(await run(fixture), false);
+    assert.equal(fixture.ns.mount.state().mounted, false);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] mount run failed [object Object]"
+      ),
+      true
+    );
+  });
+
+  it("resolves false and settles with no mods when the manifest read rejects", async () => {
+    const fixture = scene();
+    fixture.ns.manifest.load = () => rejected("unreadable");
+
+    assert.equal(await run(fixture), false);
+    assert.deepEqual(fixture.ns.mount.state().mods, []);
+    assert.equal(fixture.ns.mount.state().generation, null);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        '[GW-SM] mount run failed "unreadable"'
+      ),
+      true
+    );
+  });
+
+  it("starts a fresh run after one that failed", async () => {
+    let throws = true;
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => {
+          if (throws) {
+            throw new Error("once");
+          }
+          return resolved();
+        },
+      },
+    });
+
+    const failed = run(fixture);
+    assert.equal(await failed, false);
+
+    throws = false;
+    const next = run(fixture);
+    assert.notEqual(next, failed);
+    assert.equal(await next, true);
+    assert.equal(fixture.ns.mount.state().mounted, true);
+    assert.equal(fixture.ns.mount.sequence(), 2);
+  });
+
+  // The outer wrapper reads the generation the last run read to tell whether
+  // the inner one already remounted; a failed run counts, so it is not run twice.
+  it("counts a failed run for the hooks, so one teardown runs it once", async () => {
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => {
+          throw new Error("mountServerMods threw");
+        },
+      },
+    });
+    fixture.ns.hooks.install();
+    const inner = fixture.api.file.unmountAllMemoryFiles;
+    fixture.api.file.unmountAllMemoryFiles = function () {
+      return inner();
+    };
+
+    let outcome;
+    fixture.api.file.unmountAllMemoryFiles().then((value) => {
+      outcome = value;
+    });
+    await flush();
+
+    assert.equal(fixture.cmm.calls.mountServerMods, 1);
+    assert.equal(fixture.ns.mount.sequence(), 1);
+    assert.equal(outcome, true);
   });
 
   it("mounts, registers, merges, classifies and verifies one zip mod", async () => {
@@ -402,6 +547,34 @@ describe("mount.run", () => {
     });
     assert.equal(fixture.ns.mount.state().mounted, false);
     assert.equal(fixture.ns.mount.sequence(), 1);
+  });
+
+  // A run in flight as a teardown starts mounted under the old generation;
+  // its settling inside the teardown must not stand in for the remount.
+  it("remounts after a teardown that a run in flight settles inside", async () => {
+    const pending = Deferred();
+    const teardown = enginePromise();
+    const fixture = scene({
+      apiOptions: { unmountAllMemoryFiles: () => teardown },
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => pending.promise(),
+      },
+    });
+    fixture.ns.hooks.install();
+
+    const stale = run(fixture);
+    await flush();
+    fixture.api.file.unmountAllMemoryFiles();
+    pending.resolve();
+    assert.equal(await stale, true);
+
+    teardown.resolve();
+    await flush();
+
+    assert.equal(fixture.api.calls.zipMount.length, 2);
+    assert.equal(fixture.cmm.calls.mountServerMods, 2);
+    assert.equal(fixture.ns.mount.state().generation, 2);
   });
 
   it("shares one run between concurrent callers and starts a new one afterwards", async () => {
@@ -913,6 +1086,25 @@ describe("the launch progress report", () => {
       true
     );
   });
+
+  // A co-op viewer rebuilds the line from the key in its own language.
+  it("sends the key beside the localised text", async () => {
+    const fixture = scene({ stubs: { loc: (key) => "de " + key } });
+    const calls = [];
+    fixture.model.gwoLaunchProgress = {
+      stage: (...args) => calls.push(args),
+    };
+
+    assert.equal(await run(fixture), true);
+
+    assert.deepEqual(calls, [
+      ["de !LOC:Mounting server mods", { key: "!LOC:Mounting server mods" }],
+      [
+        "de !LOC:Registering server mod content",
+        { key: "!LOC:Registering server mod content" },
+      ],
+    ]);
+  });
 });
 
 describe("mount module", () => {
@@ -1208,6 +1400,52 @@ describe("the root mount generation", () => {
 
     assert.equal(fixture.api.calls.zipMount.length, 2);
     assert.equal(fixture.api.calls.remount.length, 1);
+  });
+
+  it("records the generation each run read as its mounts started", async () => {
+    const fixture = scene();
+
+    await run(fixture);
+    assert.equal(fixture.ns.mount.state().generation, 1);
+
+    fixture.ns.mount.invalidate();
+    await run(fixture);
+    assert.equal(fixture.ns.mount.state().generation, 2);
+  });
+
+  // A teardown that starts while a run is in flight drops that run's mounts,
+  // so a caller after it must get a run of its own.
+  it("does not hand a run that read an older generation to a later caller", async () => {
+    const pending = Deferred();
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod()],
+        mountServerMods: () => pending.promise(),
+      },
+    });
+
+    const stale = fixture.ns.mount.run();
+    await flush();
+    fixture.ns.mount.invalidate();
+    const later = fixture.ns.mount.run();
+    assert.notEqual(later, stale);
+
+    pending.resolve();
+    assert.equal(await later, true);
+
+    assert.equal(fixture.api.calls.zipMount.length, 2);
+    assert.equal(fixture.ns.mount.state().generation, 2);
+  });
+
+  it("still shares a run that has not read its generation yet", async () => {
+    const fixture = scene();
+
+    const first = fixture.ns.mount.run();
+    fixture.ns.mount.invalidate();
+
+    assert.equal(fixture.ns.mount.run(), first);
+    await first;
+    assert.equal(fixture.ns.mount.state().generation, 2);
   });
 
   it("does not skip the remount when the engine had none to run", async () => {

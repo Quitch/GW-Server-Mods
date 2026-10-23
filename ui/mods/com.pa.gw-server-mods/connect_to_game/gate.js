@@ -55,14 +55,11 @@
     return payload;
   }
 
-  // galacticWarMod keeps its stock meaning and is always reported; anything
-  // else the host is not running is left out. See design.md.
-  function sharedWithHost(mod) {
-    return mod.galacticWarMod || _.includes(hostRequired, mod.identifier);
-  }
-
   function addViewerServerMods(payload) {
-    var mods = _.filter(ns.manifest.activeServerMods(), sharedWithHost);
+    var mods = _.filter(
+      ns.manifest.activeServerMods(),
+      ns.manifest.sharedWith(hostRequired)
+    );
 
     if (!mods.length) {
       return payload;
@@ -118,6 +115,13 @@
           payload.required_names_by_id,
           payload.required_versions_by_id
         );
+
+        // The stock handler below answers the server; nothing here may stop it.
+        try {
+          ns.manifest.viewHost(hostRequired);
+        } catch (e) {
+          ns.log("host server mods not applied " + ((e && e.message) || e));
+        }
 
         ns.log("host required mods received", { identifiers: hostRequired });
       }

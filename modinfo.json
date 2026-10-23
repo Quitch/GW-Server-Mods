@@ -4,15 +4,18 @@
   "display_name": "Galactic War Server Mods",
   "description": "Mounts your active server mods for Galactic War battles, which the base game skips. In co-op the host is the source of truth: a viewer missing a server mod the host is running is told which one and why, before the battle starts.",
   "author": "Quitch",
-  "version": "1.5.0",
-  "build": "124683",
-  "date": "2026-10-17",
+  "version": "1.6.0",
+  "build": "124685",
+  "date": "2026-10-23",
   "signature": " ",
   "forum": "https://steamcommunity.com/app/386070/discussions/0/587310164511795299/",
   "category": ["titans", "classic", "gw", "fix", "gameplay"],
   "icon": "https://raw.githubusercontent.com/Quitch/GW-Server-Mods/main/images/icon.png",
   "galacticWarMod": true,
   "scenes": {
+    "global_mod_list": [
+      "coui://ui/mods/com.pa.gw-server-mods/global_mod_list/translations.js"
+    ],
     "icon_atlas": ["coui://ui/mods/com.pa.gw-server-mods/icon_atlas/icons.js"],
     "gw_start": [
       "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
@@ -77,5 +80,6 @@
       "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
       "coui://ui/mods/com.pa.gw-server-mods/live_game_players/ui.js"
     ]
-  }
+  },
+  "dependencies": ["com.pa.quitch.modtranslations"]
 }

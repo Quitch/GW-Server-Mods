@@ -345,14 +345,51 @@
     return scenes;
   }
 
-  // An empty list is not evidence: connect_to_game mounts before Community
-  // Mods has read its store, and that run must not erase what gw_play wrote.
-  function rememberScenes(mods) {
-    if (!mods || !mods.length) {
-      return scenesCache;
-    }
+  // See design.md.
+  var HOST_MODS_KEY = "gw_server_mods_viewer_host_mods";
+  // Stock's ko session var, written as JSON.
+  var ROLE_KEY = "gw_campaign_role";
 
-    scenesCache = unionScenes(mods);
+  function hostMods() {
+    try {
+      var identifiers = JSON.parse(
+        localStorage.getItem(HOST_MODS_KEY) || "null"
+      );
+      return _.isArray(identifiers) ? identifiers : null;
+    } catch (e) {
+      // An unreadable list filters nothing, which is how lists loaded before it.
+      return null;
+    }
+  }
+
+  function viewing() {
+    try {
+      return (
+        JSON.parse(sessionStorage.getItem(ROLE_KEY) || "null") === "viewer"
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // galacticWarMod keeps its stock meaning and always counts as shared;
+  // anything else the host is not running does not. See design.md.
+  function sharedWith(identifiers) {
+    return function (mod) {
+      return mod.galacticWarMod || _.includes(identifiers, mod.identifier);
+    };
+  }
+
+  function sharedScenesMods(mods, identifiers) {
+    return identifiers ? _.filter(mods, sharedWith(identifiers)) : mods;
+  }
+
+  function viewerHostMods() {
+    return viewing() ? hostMods() : null;
+  }
+
+  function writeScenes(mods, identifiers) {
+    scenesCache = unionScenes(sharedScenesMods(mods, identifiers));
 
     try {
       localStorage.setItem(SCENES_KEY, JSON.stringify(scenesCache));
@@ -361,6 +398,72 @@
     }
 
     return scenesCache;
+  }
+
+  // An empty list is not evidence: connect_to_game mounts before Community
+  // Mods has read its store, and that run must not erase what gw_play wrote.
+  function rememberScenes(mods) {
+    if (!mods || !mods.length) {
+      return scenesCache;
+    }
+
+    return writeScenes(mods, viewerHostMods());
+  }
+
+  function forgetScenes() {
+    scenesCache = null;
+
+    try {
+      localStorage.removeItem(SCENES_KEY);
+      sessionStorage.removeItem(SCENES_KEY);
+    } catch (e) {
+      ns.log("server mod scene list not cleared", { error: String(e) });
+    }
+  }
+
+  // Set by connect_to_game for a battle outside Galactic War, where Community
+  // Mods loads the battle's own server mod UI. localStorage for the same reason
+  // as the scene list. A mark that cannot be written or read counts as a
+  // Galactic War battle, which is what every battle was before it existed.
+  var NOT_GW_KEY = "gw_server_mods_not_gw_battle";
+
+  function markBattle(gw) {
+    if (!gw) {
+      forgetScenes();
+    }
+
+    try {
+      if (gw) {
+        localStorage.removeItem(NOT_GW_KEY);
+      } else {
+        localStorage.removeItem(HOST_MODS_KEY);
+        localStorage.setItem(NOT_GW_KEY, "true");
+      }
+    } catch (e) {
+      ns.log("battle mark not stored", { error: String(e) });
+    }
+  }
+
+  // identifiers: the host's published required list, normalised. Only a
+  // viewer is asked for its manifest, so this applies before the role is set.
+  function viewHost(identifiers) {
+    try {
+      localStorage.setItem(HOST_MODS_KEY, JSON.stringify(identifiers));
+    } catch (e) {
+      ns.log("host server mods not stored", { error: String(e) });
+    }
+
+    if (listed()) {
+      writeScenes(activeServerMods(), identifiers);
+    }
+  }
+
+  function gwBattle() {
+    try {
+      return localStorage.getItem(NOT_GW_KEY) !== "true";
+    } catch (e) {
+      return true;
+    }
   }
 
   // localStorage first, then the sessionStorage a previous build of this mod
@@ -372,7 +475,9 @@
   }
 
   function scenes(scene) {
-    var active = listed() ? activeServerMods() : [];
+    var active = listed()
+      ? sharedScenesMods(activeServerMods(), viewerHostMods())
+      : [];
 
     if (active.length) {
       scenesCache = unionScenes(active);
@@ -404,6 +509,11 @@
     serverModInfo: serverModInfo,
     scenes: scenes,
     rememberScenes: rememberScenes,
+    forgetScenes: forgetScenes,
+    markBattle: markBattle,
+    viewHost: viewHost,
+    sharedWith: sharedWith,
+    gwBattle: gwBattle,
     modRoot: modRoot,
     pairedClientMods: pairedClientMods,
     detectClientRelevance: function (mods) {

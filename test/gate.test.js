@@ -37,6 +37,7 @@ function scene(options) {
       {
         model: opts.model === null ? null : { send_message: send },
         stubs: {
+          location: { search: "?action=start&mode=gw" },
           handlers:
             opts.handlers === null
               ? undefined
@@ -315,6 +316,56 @@ describe("the manifest request handler", () => {
     assert.deepEqual(fixture.ns.gate.hostRequired(), ["com.x"]);
     assert.equal(
       fixture.ctx.handlers.request_client_mod_manifest.__gwServerModsPatched,
+      true
+    );
+  });
+
+  // The viewer's battles run the host's server mods. See design.md.
+  it("keeps only the server mods the host published in the viewer's scene list", () => {
+    const A = "coui://ui/mods/a/live_game.js";
+    const B = "coui://ui/mods/b/live_game.js";
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [
+          mod({ identifier: "com.a", scenes: { live_game: [A] } }),
+          mod({ identifier: "com.b", scenes: { live_game: [B] } }),
+        ],
+      },
+    });
+    fixture.ns.manifest.rememberScenes(fixture.ns.manifest.activeServerMods());
+    assert.deepEqual(fixture.ns.manifest.scenes("live_game"), [A, B]);
+
+    fixture.ctx.handlers.request_client_mod_manifest({
+      required_identifiers: ["Com.A", "com.client"],
+    });
+
+    assert.deepEqual(
+      JSON.parse(
+        fixture.ctx.localStorage.store.gw_server_mods_viewer_host_mods
+      ),
+      ["com.a", "com.client"]
+    );
+    assert.deepEqual(
+      JSON.parse(fixture.ctx.localStorage.store.gw_server_mods_scenes),
+      { live_game: [A] }
+    );
+  });
+
+  it("still runs the stock handler when the scene list cannot be filtered", () => {
+    const fixture = scene();
+    fixture.ns.manifest.viewHost = () => {
+      throw new Error("filter failed");
+    };
+
+    fixture.ctx.handlers.request_client_mod_manifest({
+      required_identifiers: ["com.a"],
+    });
+
+    assert.equal(fixture.request.calls.length, 1);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] host server mods not applied filter failed"
+      ),
       true
     );
   });

@@ -71,6 +71,9 @@ function fakeSessionStorage(initial, options) {
       }
       store[key] = String(value);
     },
+    removeItem: (key) => {
+      delete store[key];
+    },
   };
 }
 

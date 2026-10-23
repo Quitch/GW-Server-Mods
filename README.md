@@ -47,6 +47,7 @@ See [docs/design.md](docs/design.md).
 
 - Planetary Annihilation: TITANS
 - Community Mods
+- Mod Translations, installed with this mod by Community Mods
 
 ### For faction mod authors
 

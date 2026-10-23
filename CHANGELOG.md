@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v1.6.0 - 2026-10-23
+
+- GW Server Mods' warnings and its battle loading steps now show in German, Spanish, French, Italian, Japanese, Korean, Dutch, Polish, Russian, and Simplified and Traditional Chinese, and each co-op player sees the loading steps in their own language. GW Server Mods now needs Mod Translations, which Community Mods installs with it
+- When mounting the server mods fails, the PA log now records why wherever Galactic War mounts them, not only after the Fight button
+- Skirmishes with server mods active start about 10 seconds sooner: GW Server Mods no longer mounts every server mod a second time while connecting to a game outside Galactic War
+- Fixed joining a multiplayer game outside Galactic War loading the interface scripts of server mods that only you have enabled, which the host's game does not run
+- Fixed co-op Galactic War battles loading, for a joining player, the interface scripts of server mods that only that player has enabled
+
 ## v1.5.0 - 2026-10-17
 
 - The galaxy map is ready about 2 seconds sooner each time you enter it, including after a battle and when joining or hosting co-op: server mods that are still mounted from the previous screen are no longer mounted a second time
