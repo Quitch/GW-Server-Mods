@@ -388,10 +388,10 @@ with ten server mods reached its lobby in 27 s instead of 17 s (measured 2026-10
   the game it describes, so it must not outrank a current mark.
 
 A `connect_fail_destination` left from an earlier war errs towards installing them for a
-saved game, which is the old behaviour. Any other connect skips them and forgets the
-stored scene list (see
-[Server mod scene scripts](#server-mod-scene-scripts)): with no hooks, no mount runs to
-rewrite it, and a list left by an earlier war would load in this battle.
+saved game, which is the old behaviour. Any other connect skips them, forgets the
+stored scene list, and marks the battle as not Galactic War for the battle panels' server
+mod UI (see [Server mod scene scripts](#server-mod-scene-scripts)): with no hooks, no mount
+runs to rewrite the list, and a list left by an earlier war would load in this battle.
 
 ### Mount generations
 
@@ -618,10 +618,17 @@ as its scene loads, before Community Mods has read its store, and that run sees 
 every battle scene would load nothing. Should the list be missing anyway, `serverUi.load`
 reads the store itself and loads late, after the scene has bound.
 
-A connect that is not Galactic War removes the list
-([Only for a Galactic War connect](#only-for-a-galactic-war-connect)). The battle scenes
-then take that store path, and in a skirmish every URL it finds is already in
-`scene_mod_list`, so nothing loads twice.
+All of this is for a Galactic War battle only. Elsewhere Community Mods loads the
+battle's own server mod UI, and this client's store names its own active server mods,
+which a game hosted by someone else need not run: in a multiplayer join, the store path
+would load the scripts of a server mod only this client has enabled into the host's game.
+So `connect_to_game/start.js` marks every connect in `localStorage`
+(`gw_server_mods_not_gw_battle`, set for a connect that is not Galactic War and removed for
+one that is, by the test in [Only for a Galactic War connect](#only-for-a-galactic-war-connect)),
+and `serverUi.load` loads nothing while it is set. The mark names the battle that is not
+Galactic War so that every failure falls back to the behaviour before it: a mark that
+cannot be written or read leaves the battle loading as before, and a profile that has never
+connected since has none. A connect that is not Galactic War also removes the scene list.
 
 Where it runs: `live_game` (`ui.js`, which also loads the `shared_build` share,
 because `build.js` consumed that list before any scene script ran),

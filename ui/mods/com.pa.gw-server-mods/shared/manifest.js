@@ -374,6 +374,36 @@
     }
   }
 
+  // Set by connect_to_game for a battle outside Galactic War, where Community
+  // Mods loads the battle's own server mod UI. localStorage for the same reason
+  // as the scene list. A mark that cannot be written or read counts as a
+  // Galactic War battle, which is what every battle was before it existed.
+  var NOT_GW_KEY = "gw_server_mods_not_gw_battle";
+
+  function markBattle(gw) {
+    if (!gw) {
+      forgetScenes();
+    }
+
+    try {
+      if (gw) {
+        localStorage.removeItem(NOT_GW_KEY);
+      } else {
+        localStorage.setItem(NOT_GW_KEY, "true");
+      }
+    } catch (e) {
+      ns.log("battle mark not stored", { error: String(e) });
+    }
+  }
+
+  function gwBattle() {
+    try {
+      return localStorage.getItem(NOT_GW_KEY) !== "true";
+    } catch (e) {
+      return true;
+    }
+  }
+
   // localStorage first, then the sessionStorage a previous build of this mod
   // wrote, so an upgrade mid-session still finds a list.
   function storedScenes() {
@@ -416,6 +446,8 @@
     scenes: scenes,
     rememberScenes: rememberScenes,
     forgetScenes: forgetScenes,
+    markBattle: markBattle,
+    gwBattle: gwBattle,
     modRoot: modRoot,
     pairedClientMods: pairedClientMods,
     detectClientRelevance: function (mods) {

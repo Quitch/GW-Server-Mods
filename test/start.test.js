@@ -131,7 +131,13 @@ describe("which connects install the hooks", () => {
           Object.assign({ gw_server_mods_scenes: SCENES }, sessionValues)
         ),
         localStorage: fakeSessionStorage(
-          Object.assign({ gw_server_mods_scenes: SCENES }, localValues)
+          Object.assign(
+            {
+              gw_server_mods_scenes: SCENES,
+              gw_server_mods_not_gw_battle: "true",
+            },
+            localValues
+          )
         ),
       },
     });
@@ -157,6 +163,7 @@ describe("which connects install the hooks", () => {
       "gw_server_mods_scenes" in fixture.ctx.sessionStorage.store,
       false
     );
+    assert.equal(fixture.ns.manifest.gwBattle(), false);
     assert.deepEqual(fixture.ns.manifest.scenes("live_game"), []);
     assert.equal(
       fixture.console.lines.log.includes(
@@ -174,6 +181,11 @@ describe("which connects install the hooks", () => {
 
       assert.equal(hooked(fixture), true, mode);
       assert.equal(
+        "gw_server_mods_not_gw_battle" in fixture.ctx.localStorage.store,
+        false,
+        mode
+      );
+      assert.equal(
         fixture.ctx.localStorage.store.gw_server_mods_scenes,
         SCENES
       );
@@ -188,7 +200,11 @@ describe("which connects install the hooks", () => {
       "?action=start&mode=gw+campaign",
     ]) {
       assertSkipped(
-        connect(search, { game_server_setup: JSON.stringify("gw_campaign") })
+        connect(
+          search,
+          { game_server_setup: JSON.stringify("gw_campaign") },
+          { gw_server_mods_not_gw_battle: "false" }
+        )
       );
     }
   });
@@ -336,6 +352,23 @@ describe("which connects install the hooks", () => {
     const fixture = scene({ stubs: { location: undefined } });
 
     assert.equal(hooked(fixture), false);
+  });
+
+  it("logs rather than throws when the battle cannot be marked", () => {
+    const fixture = scene({
+      stubs: {
+        location: { search: "?action=start" },
+        localStorage: fakeSessionStorage({}, { setItemThrows: true }),
+      },
+    });
+
+    assert.equal(hooked(fixture), false);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        '[GW-SM] battle mark not stored {"error":"Error: QuotaExceededError"}'
+      ),
+      true
+    );
   });
 
   it("logs rather than throws when the scene list cannot be cleared", () => {

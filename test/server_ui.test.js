@@ -14,6 +14,7 @@ const { resolved } = require("../scripts/lib/fake-jquery.js");
 const A = "coui://ui/mods/com.example/live_game/a.js";
 const B = "coui://ui/mods/com.example/live_game/b.js";
 const C = "coui://ui/mods/com.other/live_game/c.js";
+const NOT_GW = "gw_server_mods_not_gw_battle";
 
 function scene(options) {
   const opts = options || {};
@@ -42,9 +43,30 @@ function scene(options) {
       ),
     })
   );
+  if (opts.notGw) {
+    fixture.ctx.localStorage.setItem(NOT_GW, "true");
+  }
   loadFile(fixture.ctx, "shared/server_ui.js");
   fixture.loads = loads;
   return fixture;
+}
+
+// The ko that manifest.load reads Community Mods' installed-mods store through,
+// holding one enabled server mod with a live_game script.
+function storeKo() {
+  const records = [
+    mod({ context: "server", enabled: true, scenes: { live_game: [A] } }),
+  ];
+  return {
+    observableArray: () => {
+      const store = () => records;
+      store.extend = () => {
+        store.ready = resolved(records);
+        return store;
+      };
+      return store;
+    },
+  };
 }
 
 describe("serverUi.load", () => {
@@ -120,19 +142,7 @@ describe("serverUi.load", () => {
   });
 
   it("reads the store and loads late when nothing is listed or persisted", async () => {
-    const records = [
-      mod({ context: "server", enabled: true, scenes: { live_game: [A] } }),
-    ];
-    const ko = {
-      observableArray: () => {
-        const store = () => records;
-        store.extend = () => {
-          store.ready = resolved(records);
-          return store;
-        };
-        return store;
-      },
-    };
+    const ko = storeKo();
     const fixture = scene({
       cmm: null,
       stubs: { ko, localStorage: { installedModsDB: "1" } },
@@ -144,6 +154,54 @@ describe("serverUi.load", () => {
     assert.deepEqual(fixture.loads, [[A]]);
     assert.deepEqual(fixture.ns.serverUi.loaded(), [A]);
     assert.deepEqual(fixture.codes(), []);
+  });
+
+  // This client's store names its own active server mods, which a battle
+  // hosted elsewhere need not run.
+  it("loads nothing outside a Galactic War battle, from a list or the store", async () => {
+    const ko = storeKo();
+    const listed = scene({ notGw: true });
+    const stored = scene({
+      cmm: null,
+      stubs: {
+        ko,
+        localStorage: {
+          installedModsDB: "1",
+          getItem: (key) => (key === NOT_GW ? "true" : null),
+        },
+      },
+    });
+
+    assert.deepEqual(listed.ns.serverUi.load("live_game"), []);
+    assert.deepEqual(listed.ns.serverUi.load("shared_build"), []);
+    assert.deepEqual(stored.ns.serverUi.load("live_game"), []);
+    await flush();
+
+    assert.deepEqual(listed.loads, []);
+    assert.deepEqual(stored.loads, []);
+    assert.equal(
+      listed.console.lines.log.filter(
+        (line) =>
+          line === "[GW-SM] not a Galactic War battle; server mod UI not loaded"
+      ).length,
+      1
+    );
+  });
+
+  // Before the mark existed every battle loaded the list; a storage that
+  // cannot be read keeps that.
+  it("reads a mark it cannot read as a Galactic War battle", () => {
+    const fixture = scene({
+      stubs: {
+        localStorage: {
+          getItem: () => {
+            throw new Error("denied");
+          },
+        },
+      },
+    });
+
+    assert.deepEqual(fixture.ns.serverUi.load("live_game"), [A, B, C]);
   });
 
   it("is loaded once per page", () => {
