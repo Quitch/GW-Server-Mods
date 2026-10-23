@@ -1,0 +1,53 @@
+{
+  "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.": {
+    "message": "Een andere mod heeft de servermods uit de strijdinstellingen verwijderd. De strijd kan zonder ze beginnen. Schakel andere mods voor de Galactische Oorlog uit en start daarna opnieuw."
+  },
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
+    "message": "Community-mods is niet actief. Servermods kunnen niet laden in de Galactische Oorlog. Schakel Community-mods in via het menu Mods en start PA daarna opnieuw."
+  },
+  "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods kon niet aansluiten op de verbinding met de strijd. Servermods laden mogelijk niet. Werk GW Server Mods bij en start PA daarna opnieuw."
+  },
+  "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods kon niet aansluiten op de start van de strijd. Servermods laden mogelijk niet. Werk GW Server Mods bij en start PA daarna opnieuw."
+  },
+  "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.": {
+    "message": "GW Server Mods kon de host niet laten weten welke servermods je gebruikt. De host kan je mods niet controleren. Verlaat het spel, start PA opnieuw en doe daarna opnieuw mee."
+  },
+  "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.": {
+    "message": "GW Server Mods kon de andere spelers niet laten weten welke servermods deze strijd nodig heeft. Spelers zonder die mods kunnen meedoen. Start PA opnieuw en host de strijd daarna opnieuw."
+  },
+  "Mounting server mods": {
+    "message": "Servermods activeren"
+  },
+  "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.": {
+    "message": "Alleen de eenheden van één factie worden geladen. Meerdere servermods leveren elk een eenhedenlijst, en PA heeft de samengevoegde lijst geweigerd. Start PA opnieuw en begin de strijd daarna opnieuw. Verschijnt dit bericht weer, schakel dan maar één factie-servermod in."
+  },
+  "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.": {
+    "message": "PA heeft de modellen en texturen van servermods niet geregistreerd. Gemodde eenheden zijn mogelijk onzichtbaar. Start PA opnieuw. Verschijnt dit bericht weer, meld het dan samen met je PA-logbestand."
+  },
+  "Registering server mod content": {
+    "message": "Inhoud van servermods registreren"
+  },
+  "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.": {
+    "message": "Servermods zijn geladen, maar PA kan hun bestanden niet lezen. Gemodde eenheden kunnen ontbreken. Start PA opnieuw. Verschijnt dit bericht weer, installeer de servermods dan opnieuw."
+  },
+  "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
+    "message": "Servermods zijn geladen, maar PA kan ze uitladen voordat de strijd begint. Werk GW Server Mods en Community-mods bij en start PA daarna opnieuw."
+  },
+  "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
+    "message": "Servermods zijn geladen, maar co-op kan ze niet tussen spelers vergelijken. Spelers met andere mods kunnen meedoen. Werk GW Server Mods en Community-mods bij."
+  },
+  "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.": {
+    "message": "Deze servermod is niet geladen. Het zip-bestand is mogelijk beschadigd. Verwijder hem via Community-mods en installeer hem daarna opnieuw."
+  },
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.": {
+    "message": "Deze servermod is ingeschakeld, maar het zip-bestand is niet gedownload. Open Community-mods en download hem, of schakel hem uit."
+  },
+  "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
+    "message": "Deze servermod is als map geïnstalleerd. De Galactische Oorlog kan hem niet gebruiken. Installeer hem als zip-bestand via Community-mods."
+  },
+  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
+    "message": "Je servermods zijn gewijzigd nadat je de sterrenkaart van de Galactische Oorlog voor het eerst opende. Strijden houden de eenhedenlijst die PA toen las, dus er kunnen eenheden ontbreken. Start PA opnieuw en begin daarna de strijd."
+  }
+}

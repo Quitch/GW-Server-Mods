@@ -1,0 +1,74 @@
+{
+  "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.": {
+    "message": "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.",
+    "description": "shared/alarm.js: alarm banner text for the identifiers_lost alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
+    "message": "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.",
+    "description": "shared/alarm.js: alarm banner text for the cmm_unavailable alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "GW Server Mods": {
+    "message": "GW Server Mods",
+    "description": "shared/alarm.js: the mod's name, the prefix of the alarm banner. A proper noun: keep it in English in every language."
+  },
+  "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.",
+    "description": "shared/alarm.js: alarm banner text for the start_unavailable alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.",
+    "description": "shared/alarm.js: alarm banner text for the launch_unavailable alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.": {
+    "message": "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.",
+    "description": "shared/alarm.js: alarm banner text for the gate_manifest_failed alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.": {
+    "message": "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.",
+    "description": "shared/alarm.js: alarm banner text for the gate_publish_failed alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "Mounting server mods": {
+    "message": "Mounting server mods",
+    "description": "shared/mount.js: a stage line on Galactic War Overhaul's battle loading panel, shown while the server mods are mounted. A progress label with no full stop."
+  },
+  "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.": {
+    "message": "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.",
+    "description": "shared/alarm.js: alarm banner text for the unit_list_unmerged alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.": {
+    "message": "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.",
+    "description": "shared/alarm.js: alarm banner text for the content_remount_unavailable alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "Registering server mod content": {
+    "message": "Registering server mod content",
+    "description": "shared/mount.js: a stage line on Galactic War Overhaul's battle loading panel, shown while PA registers the server mods' models and textures. A progress label with no full stop."
+  },
+  "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.": {
+    "message": "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.",
+    "description": "shared/alarm.js: alarm banner text for the probe_failed alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
+    "message": "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.",
+    "description": "shared/alarm.js: alarm banner text for the hooks_unavailable alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
+    "message": "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.",
+    "description": "shared/alarm.js: alarm banner text for the gate_unavailable alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.": {
+    "message": "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.",
+    "description": "shared/alarm.js: alarm banner text for the mount_failed alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.": {
+    "message": "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.",
+    "description": "shared/alarm.js: alarm banner text for the zip_missing alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
+    "message": "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.",
+    "description": "shared/alarm.js: alarm banner text for the filesystem_server_mod alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  },
+  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
+    "message": "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.",
+    "description": "shared/alarm.js: alarm banner text for the unit_list_pinned alarm, shown in the top-left corner of a Galactic War scene after \"GW Server Mods: \"; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, server mods and the Mods menu take the game's own wording."
+  }
+}

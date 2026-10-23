@@ -1,0 +1,53 @@
+{
+  "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.": {
+    "message": "Eine andere Modifikation hat die Server-Modifikationen aus der Schlachtkonfiguration entfernt. Die Schlacht beginnt möglicherweise ohne sie. Deaktiviere andere Modifikationen für den Galaktischen Krieg und starte dann erneut."
+  },
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
+    "message": "Community-Modifikationen sind nicht aktiv. Server-Modifikationen können im Galaktischen Krieg nicht geladen werden. Aktiviere Community-Modifikationen im Menü „Modifizierungen“ und starte PA dann neu."
+  },
+  "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods konnte sich nicht in die Schlachtverbindung einklinken. Server-Modifikationen werden möglicherweise nicht geladen. Aktualisiere GW Server Mods und starte PA dann neu."
+  },
+  "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods konnte sich nicht in den Schlachtstart einklinken. Server-Modifikationen werden möglicherweise nicht geladen. Aktualisiere GW Server Mods und starte PA dann neu."
+  },
+  "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.": {
+    "message": "GW Server Mods konnte dem Host nicht mitteilen, welche Server-Modifikationen du verwendest. Der Host kann deine Modifikationen nicht prüfen. Verlasse das Spiel, starte PA neu und tritt dann erneut bei."
+  },
+  "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.": {
+    "message": "GW Server Mods konnte den anderen Spielern nicht mitteilen, welche Server-Modifikationen diese Schlacht benötigt. Spieler ohne diese Modifikationen können beitreten. Starte PA neu und hoste die Schlacht dann erneut."
+  },
+  "Mounting server mods": {
+    "message": "Server-Modifikationen werden geladen"
+  },
+  "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.": {
+    "message": "Nur die Einheiten einer Fraktion werden geladen. Mehrere Server-Modifikationen liefern jeweils eine Einheitenliste, und PA hat die zusammengeführte Liste abgelehnt. Starte PA neu und starte die Schlacht dann erneut. Wenn diese Meldung erneut erscheint, aktiviere nur eine Fraktions-Server-Modifikation."
+  },
+  "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.": {
+    "message": "PA hat die Modelle und Texturen der Server-Modifikationen nicht registriert. Modifizierte Einheiten sind möglicherweise unsichtbar. Starte PA neu. Wenn diese Meldung erneut erscheint, melde sie zusammen mit deinem PA-Log."
+  },
+  "Registering server mod content": {
+    "message": "Inhalte der Server-Modifikationen werden registriert"
+  },
+  "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.": {
+    "message": "Server-Modifikationen wurden geladen, aber PA kann ihre Dateien nicht lesen. Modifizierte Einheiten fehlen möglicherweise. Starte PA neu. Wenn diese Meldung erneut erscheint, installiere die Server-Modifikationen neu."
+  },
+  "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
+    "message": "Server-Modifikationen wurden geladen, aber PA entlädt sie möglicherweise vor Beginn der Schlacht. Aktualisiere GW Server Mods und Community-Modifikationen und starte PA dann neu."
+  },
+  "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
+    "message": "Server-Modifikationen wurden geladen, aber im Koop-Modus können sie nicht zwischen den Spielern verglichen werden. Spieler mit anderen Modifikationen können beitreten. Aktualisiere GW Server Mods und Community-Modifikationen."
+  },
+  "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.": {
+    "message": "Diese Server-Modifikation wurde nicht geladen. Ihre ZIP-Datei ist möglicherweise beschädigt. Deinstalliere sie in Community-Modifikationen und installiere sie dann erneut."
+  },
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.": {
+    "message": "Diese Server-Modifikation ist aktiviert, aber ihre ZIP-Datei ist nicht heruntergeladen. Öffne Community-Modifikationen und lade sie herunter oder deaktiviere sie."
+  },
+  "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
+    "message": "Diese Server-Modifikation ist als Ordner installiert. Der Galaktische Krieg kann sie nicht verwenden. Installiere sie als ZIP-Datei über Community-Modifikationen."
+  },
+  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
+    "message": "Deine Server-Modifikationen haben sich geändert, nachdem du die Galaxiekarte des Galaktischen Kriegs zum ersten Mal geöffnet hast. Schlachten verwenden weiterhin die Einheitenliste, die PA damals gelesen hat, daher fehlen möglicherweise Einheiten. Starte PA neu und starte dann die Schlacht."
+  }
+}

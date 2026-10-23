@@ -696,6 +696,40 @@ rather than pass multiple arguments.
 `cmm_unavailable` and `gate_unavailable` matter most - a partly installed guard is worse
 than none, because it looks like enforcement.
 
+## Translations
+
+Every player-facing string is a `!LOC:` key: the alarm wording, the banner's
+`GW Server Mods` prefix, and the two launch stages. The game's own tables have none of
+them, so the mod ships its own through
+[Mod Translations](https://github.com/Quitch/Mod-Translations), which merges a mod's
+`translations/<lang>.json` into the store the stock `loc()` reads. `modinfo.json` lists it
+under `dependencies`, so Community Mods installs it with this mod. Without it, the text
+stays English.
+
+- `translations/en-US.json` is the catalog: every key, with `message` equal to the key and
+  a `description` for translators that names the file the key is in. The loader never
+  reads it, and it is left out of the release zip.
+- `translations/<lang>.json` holds one language, named for its folder under the game's
+  `ui/main/_i18n/locales/`. `de-AT` and `nl-BE` fall back to `de` and `nl`. The mod's
+  name is a proper noun and stays English, so the language files leave it out.
+- `test/translations.test.js` holds the file contract: the catalog's keys are exactly the
+  `!LOC:` literals under `ui/`, each language file's keys are in the catalog, and every
+  entry is one the loader accepts. A new or reworded string fails `verify` until the
+  catalog has it; the language files may lag, and show English for that string.
+
+`global_mod_list/translations.js` registers the folder `com.pa.gw-server-mods`, not the
+`-dev` identifier, because Mod Translations finds the files by that folder name. It runs
+from `global_mod_list` and from no scene list. A `global_mod_list` script runs on every
+page before the stock scene code, which is the only place early enough: by the time a
+scene-list script runs, the scene has translated its static HTML and cached some `loc()`
+results. That costs one read of the player's language file on every page, and none for
+English.
+
+`global_mod_list` scripts run in Community Mods' priority order. Mod Translations has
+priority 50 and this mod the default 100, so `window.ModTranslations` exists when the
+script runs. Do not raise this mod's priority to GWO's 200 or above: the launch progress
+report relies on GWO loading later (see Launch progress).
+
 ## What this cannot fix
 
 Only a locally hosted Galactic War works, which is what co-op uses. A remote or dedicated
