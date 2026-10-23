@@ -169,6 +169,32 @@ describe("jQuery 2.1.4's promise test", () => {
     assert.deepEqual(seen, [["done", "recovered"]]);
   });
 
+  it("rejects when a fail handler returns a rejected jQuery promise", () => {
+    const $ = createFakeJQuery();
+    const seen = [];
+
+    $.Deferred()
+      .reject("refused")
+      .then(null, () => $.Deferred().reject("still refused").promise())
+      .done((value) => seen.push(["done", value]))
+      .fail((value) => seen.push(["fail", value]));
+
+    assert.deepEqual(seen, [["fail", "still refused"]]);
+  });
+
+  it("passes a rejection through a then with no fail handler", () => {
+    const $ = createFakeJQuery();
+    const seen = [];
+
+    $.Deferred()
+      .reject("refused")
+      .then((value) => "mapped " + value)
+      .done((value) => seen.push(["done", value]))
+      .fail((value) => seen.push(["fail", value]));
+
+    assert.deepEqual(seen, [["fail", "refused"]]);
+  });
+
   it("resolves with a done handler's plain return value", () => {
     const $ = createFakeJQuery();
     const seen = [];
