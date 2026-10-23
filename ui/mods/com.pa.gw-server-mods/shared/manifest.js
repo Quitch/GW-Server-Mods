@@ -357,6 +357,7 @@
       );
       return _.isArray(identifiers) ? identifiers : null;
     } catch (e) {
+      // An unreadable list filters nothing, which is how lists loaded before it.
       return null;
     }
   }
