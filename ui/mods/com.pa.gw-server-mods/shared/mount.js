@@ -723,6 +723,25 @@
     });
   }
 
+  function startMounts(mods, rootOnly, withContent, afterModuleLoads, timing) {
+    // Before the first mountAtRoot, while the base list is still readable.
+    var waits = [captureVanillaUnits()];
+
+    if (afterModuleLoads) {
+      waits.push(timed(timing, "wait", moduleLoadsSettled()));
+    }
+
+    return ns.settled(waits).then(function () {
+      // Read as the mounts start, not when the run was queued or began
+      // waiting: a teardown in between has dropped the mounts it would check.
+      var generation = rootGeneration;
+
+      return rootOnly
+        ? mountRootOnly(mods, withContent, generation, timing)
+        : mountForBattle(mods, withContent, generation, timing);
+    });
+  }
+
   // Repeatable: Galactic War tears the mounts down more than once per battle.
   // remountContent: false skips the content remount, which blanks the scene.
   function runOnce(options) {
@@ -776,22 +795,13 @@
         return true;
       }
 
-      // Before the first mountAtRoot, while the base list is still readable.
-      var waits = [captureVanillaUnits()];
-
-      if (options && options.afterModuleLoads) {
-        waits.push(timed(timing, "wait", moduleLoadsSettled()));
-      }
-
-      return ns.settled(waits).then(function () {
-        // Read as the mounts start, not when the run was queued or began
-        // waiting: a teardown in between has dropped the mounts it would check.
-        var generation = rootGeneration;
-
-        return rootOnly
-          ? mountRootOnly(mods, withContent, generation, timing)
-          : mountForBattle(mods, withContent, generation, timing);
-      });
+      return startMounts(
+        mods,
+        rootOnly,
+        withContent,
+        !!(options && options.afterModuleLoads),
+        timing
+      );
     });
 
     return mounting.then(undefined, runFailed);
