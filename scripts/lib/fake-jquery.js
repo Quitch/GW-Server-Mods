@@ -61,10 +61,12 @@ function Deferred() {
   function then(onDone, onFail) {
     const next = Deferred();
 
-    function forward(handler, fallback) {
+    // A plain return value settles `next` the way the source settled, so a
+    // fail handler's return rejects. jQuery 2.1.4 does not recover there.
+    function forward(handler, action) {
       return function () {
         if (typeof handler !== "function") {
-          fallback.apply(next, arguments);
+          action.apply(next, arguments);
           return;
         }
         let result;
@@ -86,7 +88,7 @@ function Deferred() {
             }
           );
         } else {
-          next.resolve(result);
+          action.call(next, result);
         }
       };
     }

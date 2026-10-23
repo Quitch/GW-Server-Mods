@@ -142,4 +142,69 @@ describe("jQuery 2.1.4's promise test", () => {
 
     assert.equal(value, gate);
   });
+
+  it("rejects with a fail handler's plain return value", () => {
+    const $ = createFakeJQuery();
+    const seen = [];
+
+    $.Deferred()
+      .reject("refused")
+      .then(null, (error) => "recovered from " + error)
+      .done((value) => seen.push(["done", value]))
+      .fail((value) => seen.push(["fail", value]));
+
+    assert.deepEqual(seen, [["fail", "recovered from refused"]]);
+  });
+
+  it("resolves when a fail handler returns a resolved jQuery promise", () => {
+    const $ = createFakeJQuery();
+    const seen = [];
+
+    $.Deferred()
+      .reject("refused")
+      .then(null, () => $.Deferred().resolve("recovered").promise())
+      .done((value) => seen.push(["done", value]))
+      .fail((value) => seen.push(["fail", value]));
+
+    assert.deepEqual(seen, [["done", "recovered"]]);
+  });
+
+  it("rejects when a fail handler returns a rejected jQuery promise", () => {
+    const $ = createFakeJQuery();
+    const seen = [];
+
+    $.Deferred()
+      .reject("refused")
+      .then(null, () => $.Deferred().reject("still refused").promise())
+      .done((value) => seen.push(["done", value]))
+      .fail((value) => seen.push(["fail", value]));
+
+    assert.deepEqual(seen, [["fail", "still refused"]]);
+  });
+
+  it("passes a rejection through a then with no fail handler", () => {
+    const $ = createFakeJQuery();
+    const seen = [];
+
+    $.Deferred()
+      .reject("refused")
+      .then((value) => "mapped " + value)
+      .done((value) => seen.push(["done", value]))
+      .fail((value) => seen.push(["fail", value]));
+
+    assert.deepEqual(seen, [["fail", "refused"]]);
+  });
+
+  it("resolves with a done handler's plain return value", () => {
+    const $ = createFakeJQuery();
+    const seen = [];
+
+    $.Deferred()
+      .resolve("started")
+      .then((value) => value + " and mapped")
+      .done((value) => seen.push(["done", value]))
+      .fail((value) => seen.push(["fail", value]));
+
+    assert.deepEqual(seen, [["done", "started and mapped"]]);
+  });
 });
