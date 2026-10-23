@@ -40,8 +40,13 @@ describe("modinfo scenes", () => {
     const referenced = new Set(
       scenes.flatMap((scene) => sceneFiles(scene).map(couiToFsPath))
     );
+    // Mod Translations reads these by URL; see translations.test.js.
+    const translations = path.join(MOD_ROOT, "translations");
 
     for (const file of shipped(MOD_ROOT)) {
+      if (path.dirname(file) === translations) {
+        continue;
+      }
       assert.equal(referenced.has(file), true, path.relative(REPO_ROOT, file));
     }
   });
@@ -54,7 +59,9 @@ describe("modinfo scenes", () => {
       path.join(MOD_ROOT, file)
     );
 
-    for (const scene of scenes.filter((name) => name !== "icon_atlas")) {
+    const standalone = ["global_mod_list", "icon_atlas"];
+
+    for (const scene of scenes.filter((name) => !standalone.includes(name))) {
       const files = sceneFiles(scene).map(couiToFsPath);
       const shared = files.filter((file) => order.includes(file));
       const own = files.filter((file) => !order.includes(file));
@@ -104,12 +111,25 @@ describe("modinfo scenes", () => {
       path.join(MOD_ROOT, "icon_atlas", "icons.js"),
     ]);
   });
+
+  it("register the translations from every page, and nothing else", () => {
+    // global_mod_list runs on every panel of every mod's pages. See design.md.
+    assert.deepEqual(sceneFiles("global_mod_list").map(couiToFsPath), [
+      path.join(MOD_ROOT, "global_mod_list", "translations.js"),
+    ]);
+  });
 });
 
 describe("modinfo release metadata", () => {
   it("is a Galactic War client mod", () => {
     assert.equal(info.context, "client");
     assert.equal(info.galacticWarMod, true);
+  });
+
+  it("depends on Mod Translations and loads after it", () => {
+    // Mod Translations has priority 50; GWO's 200 must stay above this mod's.
+    assert.deepEqual(info.dependencies, ["com.pa.quitch.modtranslations"]);
+    assert.equal(info.priority, undefined);
   });
 
   it("has a changelog entry for its version", () => {

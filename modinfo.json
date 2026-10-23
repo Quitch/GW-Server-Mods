@@ -13,6 +13,9 @@
   "icon": "https://raw.githubusercontent.com/Quitch/GW-Server-Mods/main/images/icon.png",
   "galacticWarMod": true,
   "scenes": {
+    "global_mod_list": [
+      "coui://ui/mods/com.pa.gw-server-mods/global_mod_list/translations.js"
+    ],
     "icon_atlas": ["coui://ui/mods/com.pa.gw-server-mods/icon_atlas/icons.js"],
     "gw_start": [
       "coui://ui/mods/com.pa.gw-server-mods/shared/promise.js",
@@ -77,5 +80,6 @@
       "coui://ui/mods/com.pa.gw-server-mods/shared/server_ui.js",
       "coui://ui/mods/com.pa.gw-server-mods/live_game_players/ui.js"
     ]
-  }
+  },
+  "dependencies": ["com.pa.quitch.modtranslations"]
 }

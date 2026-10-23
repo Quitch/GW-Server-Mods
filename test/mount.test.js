@@ -913,6 +913,25 @@ describe("the launch progress report", () => {
       true
     );
   });
+
+  // A co-op viewer rebuilds the line from the key in its own language.
+  it("sends the key beside the localised text", async () => {
+    const fixture = scene({ stubs: { loc: (key) => "de " + key } });
+    const calls = [];
+    fixture.model.gwoLaunchProgress = {
+      stage: (...args) => calls.push(args),
+    };
+
+    assert.equal(await run(fixture), true);
+
+    assert.deepEqual(calls, [
+      ["de !LOC:Mounting server mods", { key: "!LOC:Mounting server mods" }],
+      [
+        "de !LOC:Registering server mod content",
+        { key: "!LOC:Registering server mod content" },
+      ],
+    ]);
+  });
 });
 
 describe("mount module", () => {

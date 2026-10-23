@@ -1,0 +1,53 @@
+{
+  "Another mod removed the server mods from the battle setup. The battle may start without them. Disable other Galactic War mods, then start again.": {
+    "message": "다른 모드가 전투 설정에서 서버 모드를 제거했습니다. 서버 모드 없이 전투가 시작될 수 있습니다. 다른 은하계 전쟁 모드를 비활성화한 다음 다시 시작하세요."
+  },
+  "Community Mods is not active. Server mods cannot load in Galactic War. Enable Community Mods in the Mods menu, then restart PA.": {
+    "message": "커뮤니티 모드가 활성화되어 있지 않습니다. 은하계 전쟁에서 서버 모드를 불러올 수 없습니다. MODS 메뉴에서 커뮤니티 모드를 활성화한 다음 PA를 다시 시작하세요."
+  },
+  "GW Server Mods could not attach to the battle connection. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods가 전투 접속에 연결하지 못했습니다. 서버 모드를 불러오지 못할 수 있습니다. GW Server Mods를 업데이트한 다음 PA를 다시 시작하세요."
+  },
+  "GW Server Mods could not attach to the battle launch. Server mods may not load. Update GW Server Mods, then restart PA.": {
+    "message": "GW Server Mods가 전투 시작에 연결하지 못했습니다. 서버 모드를 불러오지 못할 수 있습니다. GW Server Mods를 업데이트한 다음 PA를 다시 시작하세요."
+  },
+  "GW Server Mods could not tell the host which server mods you run. The host cannot check your mods. Leave the game, restart PA, then join again.": {
+    "message": "GW Server Mods가 사용 중인 서버 모드를 호스트에게 알리지 못했습니다. 호스트가 모드를 확인할 수 없습니다. 게임에서 나간 뒤 PA를 다시 시작하고 다시 참가하세요."
+  },
+  "GW Server Mods could not tell the other players which server mods this battle needs. Players who do not have them may join. Restart PA, then host the battle again.": {
+    "message": "GW Server Mods가 이 전투에 필요한 서버 모드를 다른 플레이어에게 알리지 못했습니다. 해당 모드가 없는 플레이어가 참가할 수 있습니다. PA를 다시 시작한 다음 전투를 다시 호스트하세요."
+  },
+  "Mounting server mods": {
+    "message": "서버 모드 탑재 중"
+  },
+  "Only one faction's units will load. Several server mods each ship a unit list, and PA refused the merged list. Restart PA, then start the battle again. If this message returns, enable only one faction server mod.": {
+    "message": "한 세력의 유닛만 불러옵니다. 여러 서버 모드가 각자 유닛 목록을 포함하고 있으며, PA가 병합된 목록을 거부했습니다. PA를 다시 시작한 다음 전투를 다시 시작하세요. 이 메시지가 다시 나타나면 세력 서버 모드를 하나만 활성화하세요."
+  },
+  "PA did not register server mod models and textures. Modded units may be invisible. Restart PA. If this message returns, report it with your PA log.": {
+    "message": "PA가 서버 모드의 모델과 텍스처를 등록하지 않았습니다. 모드 유닛이 보이지 않을 수 있습니다. PA를 다시 시작하세요. 이 메시지가 다시 나타나면 PA 로그와 함께 보고하세요."
+  },
+  "Registering server mod content": {
+    "message": "서버 모드 콘텐츠 등록 중"
+  },
+  "Server mods loaded, but PA cannot read their files. Modded units may be missing. Restart PA. If this message returns, reinstall the server mods.": {
+    "message": "서버 모드를 불러왔지만 PA가 해당 파일을 읽을 수 없습니다. 모드 유닛이 누락될 수 있습니다. PA를 다시 시작하세요. 이 메시지가 다시 나타나면 서버 모드를 다시 설치하세요."
+  },
+  "Server mods loaded, but PA may unload them before the battle starts. Update GW Server Mods and Community Mods, then restart PA.": {
+    "message": "서버 모드를 불러왔지만 전투가 시작되기 전에 PA가 이를 해제할 수 있습니다. GW Server Mods와 커뮤니티 모드를 업데이트한 다음 PA를 다시 시작하세요."
+  },
+  "Server mods loaded, but co-op cannot compare them between players. Players with different mods may join. Update GW Server Mods and Community Mods.": {
+    "message": "서버 모드를 불러왔지만 협동 모드에서 플레이어 간에 비교할 수 없습니다. 다른 모드를 사용하는 플레이어가 참가할 수 있습니다. GW Server Mods와 커뮤니티 모드를 업데이트하세요."
+  },
+  "This server mod did not load. Its zip may be damaged. Uninstall it in Community Mods, then install it again.": {
+    "message": "이 서버 모드를 불러오지 못했습니다. zip 파일이 손상되었을 수 있습니다. 커뮤니티 모드에서 삭제한 다음 다시 설치하세요."
+  },
+  "This server mod is enabled, but its zip is not downloaded. Open Community Mods and download it, or disable it.": {
+    "message": "이 서버 모드는 활성화되어 있지만 zip 파일이 다운로드되지 않았습니다. 커뮤니티 모드를 열어 다운로드하거나 비활성화하세요."
+  },
+  "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
+    "message": "이 서버 모드는 폴더로 설치되어 있습니다. 은하계 전쟁에서는 사용할 수 없습니다. 커뮤니티 모드에서 zip 파일로 설치하세요."
+  },
+  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
+    "message": "은하계 전쟁 은하 지도에 처음 들어간 뒤 서버 모드가 변경되었습니다. 전투에는 PA가 그때 읽은 유닛 목록이 유지되므로 유닛이 누락될 수 있습니다. PA를 다시 시작한 다음 전투를 시작하세요."
+  }
+}
