@@ -493,6 +493,13 @@ Both teardown wrappers call `mount.invalidate()` before the teardown itself runs
 generation has moved before anything is dropped. The nested wrappers on one teardown bump
 it twice; nothing mounts between the two bumps, so that is harmless.
 
+Each wrapper remounts once its teardown settles, unless a run has already settled under the
+generation it left - the inner wrapper's, or one a caller started meanwhile. `state()` records
+the generation each run read: as its mounts started, as it read its mod list when it had none
+to mount, or `null` when it failed before either. A run that started before the teardown read
+an older generation, and its mounts are the ones the teardown dropped, so its settling inside
+the teardown does not stand in for the remount.
+
 `gw_play` passes `remountContent: false` on scene entry: the galaxy map has no
 renderer content to register. Its commander portraits, tech card art and unit icons are
 read through `coui:`, which the root mounts serve on their own, so a remount there buys
@@ -513,7 +520,10 @@ rebuilt. It waits for the run in flight and then gets its own, queued rather tha
 so two runs never overlap their mounts. A root-only run in flight is the other exception:
 it merged no unit list and made no `/server_mods/<id>/` mounts, so a battle caller queues
 behind it the same way, while a root-only caller may still share a battle run, which does
-everything it needs and more. `gw_play/launch.js` therefore installs the hooks
+everything it needs and more. Nor is a run that read a generation a teardown has since moved
+past shared with anyone: its mounts are gone, so a later caller queues behind it too. A run
+that has not read its generation yet is still shared, since it reads the new one.
+`gw_play/launch.js` therefore installs the hooks
 with **no** options: an unmount mid-launch must still restore the catalogue. A run that
 would remount but finds the content already registered for its generation skips it
 silently, and does not report the "Registering" stage to the launch panel either.
@@ -728,8 +738,9 @@ throwing, say - ends the same way rather than rejecting: `mount run failed <reas
 that line with `"ok":false`, and it resolves `false` like a run whose probes failed.
 `connect_to_game/start.js` and `shared/hooks.js` would drop a rejection unlogged, so this is
 where the reason is recorded. It also settles `state()` and `sequence()`, which therefore
-count every run that ended: `shared/hooks.js` reads `sequence()` to tell whether the inner
-wrapper already remounted, and after a failed run it does not run another.
+count every run that ended. A failed run that read the current generation stands in for the
+remount like any other (see [Keeping the mounts](#keeping-the-mounts)), so one teardown does not
+run it twice.
 
 `api.debug.log` is not used and should not be. It is a forwarder -
 `Function.apply.call(console.log, console, arguments)` - so it truncates identically, and
@@ -746,7 +757,7 @@ than none, because it looks like enforcement.
 ## Translations
 
 Every player-facing string is a `!LOC:` key: the alarm wording, the banner's
-`GW Server Mods` prefix, and the two launch stages. The game's own tables have none of
+`GW Server Mods` prefix, the banner's punctuation, and the two launch stages. The game's own tables have none of
 them, so the mod ships its own through
 [Mod Translations](https://github.com/Quitch/Mod-Translations), which merges a mod's
 `translations/<lang>.json` into the store the stock `loc()` reads. `modinfo.json` lists it
@@ -759,6 +770,15 @@ stays English.
 - `translations/<lang>.json` holds one language, named for its folder under the game's
   `ui/main/_i18n/locales/`. `de-AT` and `nl-BE` fall back to `de` and `nl`. The mod's
   name is a proper noun and stays English, so the language files leave it out.
+- The banner is built from three format keys - `__name__: __alarms__`,
+  `__wording__ (__identifier__)` and `__first__  |  __next__` - so a language can use its
+  own punctuation: Japanese and Chinese take full-width colons, brackets and separators,
+  while Korean keeps the English ones. `shared/alarm.js` fills the placeholders itself in
+  one pass rather than through `loc()`'s options, because i18next fills them with
+  `String.replace`, which reads a `$` in an identifier as a pattern. A translated format
+  whose placeholders differ from the key's is not used: the banner falls back to the English
+  format rather than lose an alarm's text. Mod Translations lets a later mod's entry for the
+  same key replace this one, and the same fallback covers a replacement that drops one.
 - `test/translations.test.js` holds the file contract: the catalog's keys are exactly the
   `!LOC:` literals under `ui/`, each language file's keys are in the catalog, and every
   entry is one the loader accepts. A new or reworded string fails `verify` until the

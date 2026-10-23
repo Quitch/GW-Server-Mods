@@ -23,12 +23,13 @@
       // mounts as current.
       ns.mount.invalidate();
 
-      var before = ns.mount.sequence();
       var result = previous.apply(this, arguments);
 
       function remount() {
-        // The inner wrapper may already have remounted during that call.
-        if (ns.mount.sequence() !== before) {
+        // The inner wrapper may already have remounted during that call. A run
+        // that started before this teardown read an older generation, and its
+        // mounts are the ones the teardown dropped.
+        if (ns.mount.state().generation === ns.mount.generation()) {
           return true;
         }
 
