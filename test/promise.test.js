@@ -207,4 +207,79 @@ describe("jQuery 2.1.4's promise test", () => {
 
     assert.deepEqual(seen, [["done", "started and mapped"]]);
   });
+
+  it("throws from the settle when a then handler throws, and runs nothing after it", () => {
+    const $ = createFakeJQuery();
+    const source = $.Deferred();
+    const error = new Error("handler threw");
+    const seen = [];
+
+    source.always(() => seen.push("registered before"));
+    source
+      .then(() => {
+        throw error;
+      })
+      .done(() => seen.push("chained done"))
+      .fail(() => seen.push("chained fail"));
+    source.always(() => seen.push("registered after"));
+
+    assert.throws(() => source.resolve(), error);
+    source.done(() => seen.push("added once settled"));
+
+    assert.equal(source.state(), "resolved");
+    assert.deepEqual(seen, ["registered before"]);
+  });
+
+  it("adopts a returned object with a promise method and no then", () => {
+    const $ = createFakeJQuery();
+    const inner = $.Deferred();
+    let value;
+
+    $.Deferred()
+      .resolve()
+      .then(() => ({ promise: () => inner.promise() }))
+      .done((result) => {
+        value = result;
+      });
+
+    inner.resolve("adopted");
+
+    assert.equal(value, "adopted");
+  });
+
+  it("calls a then handler with the source promise as this", () => {
+    const $ = createFakeJQuery();
+    const resolving = $.Deferred();
+    const rejecting = $.Deferred();
+    const seen = {};
+
+    const chained = resolving.then(function () {
+      seen.done = this;
+    });
+    chained.done(function () {
+      seen.chained = this;
+    });
+    rejecting.then(null, function () {
+      seen.fail = this;
+    });
+
+    resolving.resolve();
+    rejecting.reject();
+
+    assert.equal(seen.done, resolving.promise());
+    assert.equal(seen.fail, rejecting.promise());
+    assert.equal(seen.chained, chained);
+  });
+
+  it("runs always and done handlers in the order they were added", () => {
+    const $ = createFakeJQuery();
+    const deferred = $.Deferred();
+    const seen = [];
+
+    deferred.always(() => seen.push("always"));
+    deferred.done(() => seen.push("done"));
+    deferred.resolve();
+
+    assert.deepEqual(seen, ["always", "done"]);
+  });
 });

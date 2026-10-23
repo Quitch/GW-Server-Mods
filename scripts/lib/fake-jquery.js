@@ -21,95 +21,105 @@ function isJqPromise(value) {
 function Deferred() {
   let state = "pending";
   let args = [];
-  const done = [];
-  const fail = [];
-  const always = [];
+  let context;
+  let firing = false;
+  // One list in registration order, as jQuery's `always` is `done` plus `fail`.
+  const handlers = [];
 
-  function fire(list) {
-    while (list.length) {
-      list.shift().apply(null, args);
+  // A handler that throws leaves `firing` set for good, as it leaves jQuery's
+  // callback list: the throw reaches whoever settled the deferred, and neither
+  // the rest of the list nor any handler added later runs.
+  function fire() {
+    firing = true;
+    while (handlers.length) {
+      const handler = handlers.shift();
+      if (handler.on === "always" || handler.on === state) {
+        handler.fn.apply(context, args);
+      }
     }
+    firing = false;
   }
 
-  function settle(next, list) {
-    return function () {
+  function settleWith(next) {
+    return function (withContext, withArgs) {
       if (state !== "pending") {
         return deferred;
       }
       state = next;
-      args = Array.prototype.slice.call(arguments);
-      fire(list);
-      fire(always);
+      context = withContext;
+      args = Array.prototype.slice.call(withArgs || []);
+      fire();
       return deferred;
     };
   }
 
-  function on(list, when) {
+  // Handlers run with this deferred's promise as `this`, unless the settle
+  // call was made on something else, as in jQuery.
+  function settle(withMethod) {
+    return function () {
+      return withMethod(this === deferred ? promise : this, arguments);
+    };
+  }
+
+  function on(when) {
     return function (fn) {
       if (typeof fn !== "function") {
         return promise;
       }
-      if (state === "pending") {
-        list.push(fn);
+      if (state === "pending" || firing) {
+        handlers.push({ on: when, fn: fn });
       } else if (when === "always" || state === when) {
-        fn.apply(null, args);
+        fn.apply(context, args);
       }
       return promise;
     };
   }
 
+  // A plain return value settles `next` the way the source settled, so a fail
+  // handler's return rejects; only a returned jQuery promise, adopted through
+  // its `done` and `fail`, can resolve it. jQuery 2.1.4 does not recover there.
   function then(onDone, onFail) {
     const next = Deferred();
 
-    // A plain return value settles `next` the way the source settled, so a
-    // fail handler's return rejects. jQuery 2.1.4 does not recover there.
     function forward(handler, action) {
       return function () {
+        const nextContext = this === promise ? next.promise() : this;
+
         if (typeof handler !== "function") {
-          action.apply(next, arguments);
+          next[action](nextContext, arguments);
           return;
         }
-        let result;
-        try {
-          result = handler.apply(null, arguments);
-        } catch (e) {
-          next.reject(e);
-          return;
-        }
-        if (isJqPromise(result)) {
-          // Not next.resolve itself: as a handler it would return the
-          // deferred, a thenable, and an already settled chain would recurse.
-          result.then(
-            function () {
-              next.resolve.apply(next, arguments);
-            },
-            function () {
-              next.reject.apply(next, arguments);
-            }
-          );
+        const returned = handler.apply(this, arguments);
+        if (isJqPromise(returned)) {
+          returned.promise().done(next.resolve).fail(next.reject);
         } else {
-          action.call(next, result);
+          next[action](nextContext, [returned]);
         }
       };
     }
 
-    promise.done(forward(onDone, next.resolve));
-    promise.fail(forward(onFail, next.reject));
+    promise.done(forward(onDone, "resolveWith"));
+    promise.fail(forward(onFail, "rejectWith"));
     return next.promise();
   }
 
   const promise = {
-    done: on(done, "resolved"),
-    fail: on(fail, "rejected"),
-    always: on(always, "always"),
+    done: on("resolved"),
+    fail: on("rejected"),
+    always: on("always"),
     then: then,
     state: () => state,
     promise: () => promise,
   };
 
+  const resolveWith = settleWith("resolved");
+  const rejectWith = settleWith("rejected");
+
   const deferred = Object.assign({}, promise, {
-    resolve: settle("resolved", done),
-    reject: settle("rejected", fail),
+    resolve: settle(resolveWith),
+    reject: settle(rejectWith),
+    resolveWith: resolveWith,
+    rejectWith: rejectWith,
   });
 
   return deferred;

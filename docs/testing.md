@@ -53,7 +53,10 @@ Consequences worth knowing:
   jQuery 2.1.4 does, so an engine promise given to either is read as a plain value
   and never waited for. A `then` fail handler's plain return value rejects the
   chained promise, as in jQuery 2.1.4; only a returned jQuery promise can resolve
-  it. `test/promise.test.js` pins both. Also exported:
+  it. Handlers run in the order they were added, `always` among them, with the
+  promise as `this`. A handler that throws is not caught: the error leaves the
+  `resolve()` or `reject()` that fired it, and nothing after it in the list, or
+  added later, runs. `test/promise.test.js` pins all of this. Also exported:
   `enginePromise()`, an object with `then`, `resolve` and `reject` and none of
   jQuery's methods — the shape every `api.*` call returns. Hold one pending to
   prove the code under test waits for it.
