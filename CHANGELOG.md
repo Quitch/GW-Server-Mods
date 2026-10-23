@@ -3,6 +3,7 @@
 ## Unreleased
 
 - GW Server Mods' warnings and its battle loading steps now show in German, Spanish, French, Italian, Japanese, Korean, Dutch, Polish, Russian, and Simplified and Traditional Chinese, and each co-op player sees the loading steps in their own language. GW Server Mods now needs Mod Translations, which Community Mods installs with it
+- When mounting the server mods fails, the PA log now records why wherever Galactic War mounts them, not only after the Fight button
 - Skirmishes with server mods active start about 10 seconds sooner: GW Server Mods no longer mounts every server mod a second time while connecting to a game outside Galactic War
 
 ## v1.5.0 - 2026-10-17

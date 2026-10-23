@@ -711,6 +711,14 @@ by side (`content`, `merge` and the classification) overlap, so they do not sum 
 stage that was skipped reads as a few milliseconds. This is the instrument every
 performance claim about a launch is checked against, so it stays.
 
+A run whose sequence throws or rejects part way - `CommunityModsManager.mountServerMods()`
+throwing, say - ends the same way rather than rejecting: `mount run failed <reason>`, then
+that line with `"ok":false`, and it resolves `false` like a run whose probes failed.
+`connect_to_game/start.js` and `shared/hooks.js` would drop a rejection unlogged, so this is
+where the reason is recorded. It also settles `state()` and `sequence()`, which therefore
+count every run that ended: `shared/hooks.js` reads `sequence()` to tell whether the inner
+wrapper already remounted, and after a failed run it does not run another.
+
 `api.debug.log` is not used and should not be. It is a forwarder -
 `Function.apply.call(console.log, console, arguments)` - so it truncates identically, and
 it adds two problems: every call is gated on a `debug_allow_logs` local setting that is
