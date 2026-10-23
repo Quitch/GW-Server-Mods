@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## Unreleased
+
+- GW Server Mods' warnings and its battle loading steps now show in German, Spanish, French, Italian, Japanese, Korean, Dutch, Polish, Russian, and Simplified and Traditional Chinese, and each co-op player sees the loading steps in their own language. GW Server Mods now needs Mod Translations, which Community Mods installs with it
+
 ## v1.5.0 - 2026-10-17
 
 - The galaxy map is ready about 2 seconds sooner each time you enter it, including after a battle and when joining or hosting co-op: server mods that are still mounted from the previous screen are no longer mounted a second time
