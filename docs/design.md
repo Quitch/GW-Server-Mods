@@ -616,7 +616,10 @@ as its scene loads, before Community Mods has read its store, and that run sees 
 — measured live: `mounted server mods {"ok":true,"count":0}` two seconds before
 `community mods ready`. Written through, it would erase the list `gw_play` persisted and
 every battle scene would load nothing. Should the list be missing anyway, `serverUi.load`
-reads the store itself and loads late, after the scene has bound.
+reads the store itself and loads late, after the scene has bound. A list that is present
+but has no entry for a scene means no server mod ships scripts there, and the store is not
+read: a co-op viewer's panels other than `game` cannot see stock's `gw_campaign_role`, so
+a store read there would skip the host's filter described below.
 
 All of this is for a Galactic War battle only. Elsewhere Community Mods loads the
 battle's own server mod UI, and this client's store names its own active server mods,
