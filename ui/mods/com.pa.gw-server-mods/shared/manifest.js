@@ -469,9 +469,11 @@
   // localStorage first, then the sessionStorage a previous build of this mod
   // wrote, so an upgrade mid-session still finds a list.
   function storedScenes() {
-    return (
-      readStoredScenes(localStorage) || readStoredScenes(sessionStorage) || {}
-    );
+    return readStoredScenes(localStorage) || readStoredScenes(sessionStorage);
+  }
+
+  function scenesStored() {
+    return !!storedScenes();
   }
 
   function scenes(scene) {
@@ -482,7 +484,7 @@
     if (active.length) {
       scenesCache = unionScenes(active);
     } else if (!scenesCache) {
-      scenesCache = storedScenes();
+      scenesCache = storedScenes() || {};
     }
 
     return _.isUndefined(scene) ? scenesCache : scenesCache[scene] || [];
@@ -508,6 +510,7 @@
     activeServerMods: activeServerMods,
     serverModInfo: serverModInfo,
     scenes: scenes,
+    scenesStored: scenesStored,
     rememberScenes: rememberScenes,
     forgetScenes: forgetScenes,
     markBattle: markBattle,
