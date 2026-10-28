@@ -8,7 +8,11 @@ const assert = require("node:assert/strict");
 
 const { sharedScene } = require("../scripts/lib/shared-scene.js");
 const { mod } = require("../scripts/lib/fake-cmm.js");
-const { flush, loadFile } = require("../scripts/lib/scene-loader.js");
+const {
+  fakeSessionStorage,
+  flush,
+  loadFile,
+} = require("../scripts/lib/scene-loader.js");
 const { resolved } = require("../scripts/lib/fake-jquery.js");
 
 const A = "coui://ui/mods/com.example/live_game/a.js";
@@ -52,10 +56,15 @@ function scene(options) {
 }
 
 // The ko that manifest.load reads Community Mods' installed-mods store through,
-// holding one enabled server mod with a live_game script.
+// holding one enabled server mod with a live_game and a live_game_build_bar
+// script.
 function storeKo() {
   const records = [
-    mod({ context: "server", enabled: true, scenes: { live_game: [A] } }),
+    mod({
+      context: "server",
+      enabled: true,
+      scenes: { live_game: [A], live_game_build_bar: [B] },
+    }),
   ];
   return {
     observableArray: () => {
@@ -154,6 +163,26 @@ describe("serverUi.load", () => {
     assert.deepEqual(fixture.loads, [[A]]);
     assert.deepEqual(fixture.ns.serverUi.loaded(), [A]);
     assert.deepEqual(fixture.codes(), []);
+  });
+
+  // A viewer's role is in the game panel's sessionStorage only, so another
+  // panel's store read would not apply the host's list.
+  it("loads nothing from the store when the persisted list has no entry for the scene", async () => {
+    const storage = fakeSessionStorage({
+      gw_server_mods_scenes: JSON.stringify({ live_game: [C] }),
+      gw_server_mods_viewer_host_mods: JSON.stringify(["com.other"]),
+    });
+    storage.installedModsDB = "1";
+    const fixture = scene({
+      cmm: null,
+      stubs: { ko: storeKo(), localStorage: storage },
+    });
+
+    assert.deepEqual(fixture.ns.serverUi.load("live_game_build_bar"), []);
+    await flush();
+
+    assert.deepEqual(fixture.loads, []);
+    assert.deepEqual(fixture.ns.serverUi.loaded(), []);
   });
 
   // This client's store names its own active server mods, which a battle

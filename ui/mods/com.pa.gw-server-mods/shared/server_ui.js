@@ -73,7 +73,7 @@
 
     var urls = ns.manifest.scenes(scene);
 
-    if (!urls.length && !ns.manifest.listed()) {
+    if (!urls.length && !ns.manifest.listed() && !ns.manifest.scenesStored()) {
       ns.manifest.load().then(function () {
         loadUrls(scene, ns.manifest.scenes(scene));
       });
