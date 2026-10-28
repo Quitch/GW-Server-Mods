@@ -335,11 +335,12 @@
       return Promise.resolve("unmerged\n" + rootKey(mods));
     }
 
-    // Every read is through coui://, never spec://: the engine caches a spec://
-    // path after its first read, and the referee reads the merged list through
-    // spec://, so a spec:// read here would pin the unmerged list for the whole
-    // process. The base list comes from captureVanillaUnits rather than a read
-    // taken now, which the root mounts would shadow. See design.md.
+    // The referee's path is never read through spec:// here: the engine caches
+    // a spec:// path after its first read, and the referee reads the merged
+    // list through spec://, so a read of it here would pin the unmerged list
+    // for the whole process. The base list comes from captureVanillaUnits
+    // rather than a read taken now, which the root mounts would shadow.
+    // See design.md.
     var reads = [Promise.resolve(loadVanillaUnits())].concat(
       _.map(
         _.filter(mods, function (mod) {
