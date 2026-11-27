@@ -471,7 +471,8 @@ zips that shadowed stock models and with server zips that add models at new path
 - `api.content.remount()` rebuilds the content catalogue and re-resolves every loaded asset
   against what is mounted at that moment. A stock radar drew as the shadowing model after a
   rebuild with the shadowing zip mounted, and went back to stock after later rebuilds that
-  ran without it. The VFS rebuild inside `Resetting game state` does the same.
+  ran without it. The VFS rebuild inside `Resetting game state` is assumed to do the same,
+  from its identical log block; it was not tested on its own.
 
 So the rebuild matters for the assets an earlier battle loaded. Community Mods rebuilds after
 mounting its client zips, and a rebuild that runs while the root zips are unmounted resolves
@@ -526,8 +527,8 @@ needed and where the launch panel accounts for the wait. `connect_to_game` runs 
 default options. The patched `model.fight` runs **without** the remount when
 `hooks.installed()` is true - every seam taken, the content accessor included - because
 the referee's own teardown then rebuilds the catalogue over the root zips through that
-accessor, and a rebuild before the fight would only be thrown away by the unmount that
-follows. Without the seams it keeps the default, so a battle can never start with models
+accessor, and a rebuild before the fight would only be superseded by that teardown's own
+rebuild. Without the seams it keeps the default, so a battle can never start with models
 that the last rebuild resolved without the root zips.
 
 That makes the coalescing in `run()` load-bearing rather than a convenience. Concurrent

@@ -200,8 +200,6 @@
     contentRegisteredAt = generation;
   }
 
-  // A rebuild re-resolves every loaded model and texture against what is
-  // mounted then, so the one a battle relies on must run over the root zips.
   // Skipped when the catalogue was already rebuilt over this generation's root
   // mounts, by this mod or by Community Mods through the hooks. See design.md.
   function remountContent(generation) {
@@ -829,12 +827,9 @@
 
   // A single unmount reaches here through two wrappers, and a full cycle costs
   // seconds, so concurrent callers share one run. A caller that needs the
-  // content remount is the exception: a run that skipped it leaves loaded
-  // models as the last rebuild resolved them, which may have run without the
-  // root zips, so sharing one could start the battle with modded units drawn
-  // from the wrong files. That caller waits for the run in flight and then
-  // gets its own - queued rather than started, since two runs must not
-  // overlap their mounts.
+  // content remount is the exception (see design.md): it waits for the run in
+  // flight and then gets its own - queued rather than started, since two runs
+  // must not overlap their mounts.
   // A root-only run in flight is the other exception for a battle caller: it
   // merged nothing and made no /server_mods/<id>/ mounts, so only another
   // root-only caller may share it. So may no caller a run that read a
