@@ -345,35 +345,32 @@
   // The last merge this scene mounted, kept so a root-only run can put it
   // back: its zip mounts land at "/" after the memory file and re-shadow it.
   // The merge itself cannot run there - its spec:/server_mods/<id>/ reads
-  // exist only once CommunityModsManager.mountServerMods has run, and spec:
-  // pins a path's first read for the whole process. Scene-scoped on purpose:
-  // the harmful sequence - a battle mount then a root-only one - happens
-  // inside gw_play, gw_start has no merge to restore, and a merge carried
-  // across scenes could name the wrong mod set. See design.md.
+  // exist only once CommunityModsManager.mountServerMods has run.
+  // Scene-scoped on purpose: the harmful sequence - a battle mount then a
+  // root-only one - happens inside gw_play, gw_start has no merge to restore,
+  // and a merge carried across scenes could name the wrong mod set.
+  // See design.md.
   var mergedUnitFile;
 
   // Every faction ships its own unit_list.json and the root mounts shadow each
   // other, so the referee would only see the last one. See design.md.
   function mergeUnitList(mods) {
     var mgr = CommunityModsManager;
-    var merging = !(
+
+    if (
       _.isFunction(mgr.mergeUnitServerMods) &&
       mgr.mergeUnitServerMods() === false
-    );
+    ) {
+      ns.log("unit list merge disabled by Community Mods");
+      return Promise.resolve();
+    }
+
     var zips = _.filter(mods, function (mod) {
       return !mod.fileSystem;
     });
 
-    if (!merging) {
-      ns.log("unit list merge disabled by Community Mods");
-    }
-
-    // The referee's path is never read through spec:// here: the engine caches
-    // a spec:// path after its first read, and the referee reads the merged
-    // list through spec://, so a read of it here would pin the unmerged list
-    // for the whole process. The base list comes from captureVanillaUnits
-    // rather than a read taken now, which the root mounts would shadow.
-    // See design.md.
+    // The base list comes from captureVanillaUnits rather than a read taken
+    // now, which the root mounts would shadow. See design.md.
     var reads = [Promise.resolve(loadVanillaUnits())].concat(
       _.map(zips, function (mod) {
         return readUnitList(
@@ -383,28 +380,13 @@
     );
 
     return ns.settled(reads).then(function (lists) {
-      var modLists = lists.slice(1);
-
-      return merging
-        ? mountMergedList(lists[0], _.filter(modLists, _.isArray))
-        : unmergedKey(zips, modLists);
+      return mountMergedList(lists[0], _.filter(lists.slice(1), _.isArray));
     });
   }
 
-  // See design.md.
-  function unmergedKey(zips, modLists) {
-    var shipped = _.filter(zips, function (mod, index) {
-      return _.isArray(modLists[index]);
-    });
-
-    return shipped.length ? "unmerged\n" + rootKey(shipped) : "";
-  }
-
-  // Resolves with the key checkPinnedUnitList compares: the merged units
-  // sorted, "" when no mod adds a list, or null when the merge did not mount.
   function mountMergedList(base, modLists) {
     if (!modLists.length) {
-      return Promise.resolve("");
+      return Promise.resolve();
     }
 
     var merged = _.union.apply(_, [base || []].concat(modLists));
@@ -413,7 +395,7 @@
 
     if (!api.file || !_.isFunction(api.file.mountMemoryFiles)) {
       reportUnmerged(detail, "mountMemoryFiles unavailable");
-      return Promise.resolve(null);
+      return Promise.resolve();
     }
 
     return Promise.resolve(
@@ -422,61 +404,11 @@
       function () {
         mergedUnitFile = { payload: payload, detail: detail };
         ns.log("merged unit list", detail);
-
-        return merged.slice().sort().join("\n");
       },
       function (error) {
         reportUnmerged(detail, String(error));
-
-        return null;
       }
     );
-  }
-
-  // The key of this page's last battle merge. run() never overlaps two runs,
-  // so the key read after a merge is that run's.
-  var mergeKey;
-
-  function mergeForBattle(mods) {
-    mergeKey = undefined;
-
-    return mergeUnitList(mods).then(function (key) {
-      mergeKey = key;
-    });
-  }
-
-  // verify() is the first read of the referee's spec:// list, and spec:// keeps
-  // that read for the whole process, so a later battle with another merge
-  // still gets the first one. sessionStorage lives as long. A key that is not
-  // a string is a merge that failed, which says nothing about the set. A
-  // co-op viewer skips it. See design.md.
-  var PINNED_KEY = "gw_server_mods_pinned_unit_list";
-
-  function checkPinnedUnitList(current) {
-    var pinned;
-
-    if (!_.isString(current) || ns.manifest.viewingHost()) {
-      return;
-    }
-
-    try {
-      pinned = sessionStorage.getItem(PINNED_KEY);
-
-      if (pinned === null) {
-        sessionStorage.setItem(PINNED_KEY, current);
-        return;
-      }
-    } catch (e) {
-      ns.log("pinned unit list not checked " + ((e && e.message) || e));
-      return;
-    }
-
-    if (pinned !== current) {
-      ns.alarm("unit_list_pinned", {
-        pinned: pinned.length,
-        current: current.length,
-      });
-    }
   }
 
   // Called by mountRootOnly after its zip mounts, which re-shadow the memory
@@ -686,13 +618,12 @@
           withContent
             ? timed(timing, "content", remountContent(generation))
             : null,
-          timed(timing, "merge", mergeForBattle(mods)),
+          timed(timing, "merge", mergeUnitList(mods)),
           ns.manifest.detectClientRelevance(mods),
         ]);
       })
       .then(function () {
         reportUnmountableMods(mods);
-        checkPinnedUnitList(mergeKey);
 
         return timed(timing, "verify", verify(mods));
       })
@@ -850,13 +781,6 @@
 
       if (!mods.length) {
         ticket.generation = rootGeneration;
-
-        // The referee reads the base list for a battle with none, but an empty
-        // list read before Community Mods has its store is not evidence.
-        if (!rootOnly && options && options.battle && ns.manifest.storeRead()) {
-          checkPinnedUnitList("");
-        }
-
         settle(true, [], timing, ticket);
 
         return true;

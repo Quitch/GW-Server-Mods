@@ -46,8 +46,5 @@
   },
   "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
     "message": "Diese Server-Modifikation ist als Ordner installiert. Der Galaktische Krieg kann sie nicht verwenden. Installiere sie als ZIP-Datei über Community-Modifikationen."
-  },
-  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
-    "message": "Deine Server-Modifikationen haben sich geändert, nachdem du die Galaxiekarte des Galaktischen Kriegs zum ersten Mal geöffnet hast. Schlachten verwenden weiterhin die Einheitenliste, die PA damals gelesen hat, daher fehlen möglicherweise Einheiten. Starte PA neu und starte dann die Schlacht."
   }
 }

@@ -23,9 +23,7 @@
       // With every seam taken, the referee's own teardown rebuilds the
       // content over the root zips; without the seams nothing else would.
       // See design.md.
-      var options = ns.hooks.installed()
-        ? { remountContent: false, battle: true }
-        : { battle: true };
+      var options = ns.hooks.installed() ? { remountContent: false } : {};
 
       function fight() {
         return previous.apply(self, args);

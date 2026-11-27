@@ -35,12 +35,7 @@ function createFakeCmm(options) {
   if (opts.clientMods) {
     mgr.activeInstalledClientMods = () => opts.clientMods;
   }
-  // The db extender's jQuery Deferred, read through state().
-  if (opts.installedStore !== undefined) {
-    mgr.installedMods = { ready: { state: () => opts.installedStore } };
-  }
-  // Or the Deferred itself, for code that waits on it; this one wins if both
-  // are given.
+  // The db extender's jQuery Deferred, for code that waits on it.
   if (opts.installedReady !== undefined) {
     mgr.installedMods = { ready: opts.installedReady };
   }
