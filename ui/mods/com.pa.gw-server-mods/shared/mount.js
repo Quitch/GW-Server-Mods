@@ -407,8 +407,7 @@
   // that read for the whole process, so a later battle with another merge
   // still gets the first one. sessionStorage lives as long. A key that is not
   // a string is a merge that failed, which says nothing about the set. A
-  // co-op viewer runs no referee, and merges only the host's mods, so it
-  // neither records nor checks the key. See design.md.
+  // co-op viewer skips it. See design.md.
   var PINNED_KEY = "gw_server_mods_pinned_unit_list";
 
   function checkPinnedUnitList(current) {
@@ -501,10 +500,13 @@
   // A folder-installed server mod the client has to render cannot be made
   // visible to it. An AI-only one is unaffected, so this waits for the
   // classification rather than warning about every folder mod.
-  function reportUnmountableMods() {
+  function reportUnmountableMods(mods) {
+    var mounting = _.map(mods, "identifier");
     var stranded = _.filter(
       ns.manifest.clientRelevantServerMods(),
-      "fileSystem"
+      function (mod) {
+        return mod.fileSystem && _.includes(mounting, mod.identifier);
+      }
     );
 
     _.forEach(stranded, function (mod) {
@@ -522,8 +524,7 @@
       checks.push(probe("coui:/" + ns.manifest.modRoot(mod) + "modinfo.json"));
     });
 
-    // The referee's own input. A viewer runs no referee, and its read would pin
-    // the host's list for a later solo battle. See design.md.
+    // The referee's own input, so a viewer skips it. See design.md.
     var referee = !ns.manifest.viewingHost();
 
     if (referee) {
@@ -648,7 +649,7 @@
         ]);
       })
       .then(function () {
-        reportUnmountableMods();
+        reportUnmountableMods(mods);
         checkPinnedUnitList(mergeKey);
 
         return timed(timing, "verify", verify(mods));

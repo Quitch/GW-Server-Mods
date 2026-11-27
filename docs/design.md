@@ -657,6 +657,16 @@ so a viewer that mounted one the host does not run would read and draw content t
 does not use: a balance mod's unit specs in its UI, a replaced model or effect in its view.
 `manifest.serverModsToMount()` applies the same filter as the scene list, and a run and the
 content accessor's root batch mount only what it returns, with only those mods' companions.
+Stock resets `gw_campaign_role` only when `gw_play` loads without `gw_campaign`, so after a
+viewer exits to the main menu the role still reads `viewer` in `gw_start`. A war being
+created is never viewed, so `gw_start/mount.js` forgets the stored host list before it
+mounts.
+
+Root mounts only add. A server mod this client mounted earlier in the same session, in its
+own solo war for example, stays at `/` when it later views a host that does not run it, until
+PA restarts. Measured on build 124739: the join's two `Resetting game state` blocks did not
+unmount it, and its files still served in the viewer's co-op `gw_play`. A solo player who
+disables a faction mid-session keeps that zip mounted the same way.
 
 A viewer therefore merges a different unit list from the one its own server mods give. While
 viewing it neither records nor checks the `unit_list_pinned` key, and `verify()` does not

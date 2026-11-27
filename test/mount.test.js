@@ -475,6 +475,34 @@ describe("mount.run", () => {
       );
     });
 
+    it("does not alarm about a folder mod it is not mounting", async () => {
+      const fixture = scene({
+        cmmOptions: {
+          serverMods: [
+            mod({ identifier: "com.host", installedPath: "/host.zip" }),
+            mod({
+              identifier: "com.folder",
+              fileSystem: true,
+              installedPath: "/mods/folder/",
+            }),
+          ],
+        },
+        stubs: {
+          localStorage: fakeSessionStorage({
+            gw_server_mods_viewer_host_mods: JSON.stringify(["com.host"]),
+          }),
+          sessionStorage: fakeSessionStorage({
+            gw_campaign_role: JSON.stringify("viewer"),
+            gw_server_mods_relevance: JSON.stringify({ "com.folder": true }),
+          }),
+        },
+      });
+
+      await run(fixture);
+
+      assert.equal(fixture.alarm("filesystem_server_mod").length, 0);
+    });
+
     it("mounts only those inside a teardown's rebuild", async () => {
       const fixture = viewerScene();
 

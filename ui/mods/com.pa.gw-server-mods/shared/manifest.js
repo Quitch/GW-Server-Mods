@@ -186,7 +186,9 @@
     }
 
     if (_.isArray(mods)) {
-      var kept = _.map(mods, "identifier");
+      var kept = _.map(mods, function (mod) {
+        return normalizeIdentifier(mod && mod.identifier);
+      });
 
       records = _.filter(records, function (mod) {
         return _.includes(kept, normalizeIdentifier(mod && mod.identifier));
@@ -397,14 +399,22 @@
     return viewing() ? hostMods() : null;
   }
 
-  // What this client mounts: on a co-op viewer, the same mods the scene list
-  // keeps, since the host's server runs no others. See design.md.
+  // See design.md.
   function serverModsToMount() {
     return sharedScenesMods(activeServerMods(), viewerHostMods());
   }
 
   function viewingHost() {
     return viewerHostMods() !== null;
+  }
+
+  // Stock resets the role only when gw_play loads. See design.md.
+  function forgetHost() {
+    try {
+      localStorage.removeItem(HOST_MODS_KEY);
+    } catch (e) {
+      ns.log("host server mods not cleared", { error: String(e) });
+    }
   }
 
   function writeScenes(mods, identifiers) {
@@ -529,6 +539,7 @@
     activeServerMods: activeServerMods,
     serverModsToMount: serverModsToMount,
     viewingHost: viewingHost,
+    forgetHost: forgetHost,
     serverModInfo: serverModInfo,
     scenes: scenes,
     scenesStored: scenesStored,

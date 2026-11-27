@@ -215,6 +215,13 @@ describe("manifest.pairedClientMods", () => {
       ["com.kept-client"]
     );
     assert.deepEqual(ns.manifest.pairedClientMods([]), []);
+    // A caller on the public namespace may pass Community Mods' raw records.
+    assert.deepEqual(
+      ns.manifest
+        .pairedClientMods([{ identifier: "Com.Kept" }])
+        .map((m) => m.identifier),
+      ["com.kept-client"]
+    );
   });
 
   it("logs when a companion is not active", () => {

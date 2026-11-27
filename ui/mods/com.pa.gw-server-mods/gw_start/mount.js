@@ -4,6 +4,9 @@
    skipped. Community Mods is absent here; see design.md. */
 (function () {
   try {
+    // A war being created is never viewed, so a host list left from viewing
+    // is stale here.
+    window.GwServerMods.manifest.forgetHost();
     window.GwServerMods.mount.run({
       rootOnly: true,
       remountContent: false,
