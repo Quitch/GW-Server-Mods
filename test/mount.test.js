@@ -394,6 +394,99 @@ describe("mount.run", () => {
     );
   });
 
+  // The host's server runs only the mods it published, so a viewer's extra
+  // server mod must not replace base files on the viewer's client.
+  describe("on a co-op viewer", () => {
+    function viewerScene() {
+      return scene({
+        cmmOptions: {
+          serverMods: [
+            mod({ identifier: "com.host", installedPath: "/host.zip" }),
+            mod({
+              identifier: "com.extra",
+              installedPath: "/extra.zip",
+              companions: ["com.extra-client"],
+            }),
+          ],
+          clientMods: [
+            mod({
+              identifier: "com.extra-client",
+              installedPath: "/extra-client.zip",
+            }),
+          ],
+        },
+        stubs: {
+          localStorage: fakeSessionStorage({
+            gw_server_mods_viewer_host_mods: JSON.stringify(["com.host"]),
+          }),
+          sessionStorage: fakeSessionStorage({
+            gw_campaign_role: JSON.stringify("viewer"),
+          }),
+        },
+      });
+    }
+
+    it("mounts only the server mods the host runs", async () => {
+      const fixture = viewerScene();
+
+      assert.equal(await run(fixture), true);
+
+      assert.deepEqual(
+        fixture.api.calls.zipMount.map((call) => call[0]),
+        ["/host.zip"]
+      );
+      assert.deepEqual(
+        fixture.ns.mount.state().mods.map((m) => m.identifier),
+        ["com.host"]
+      );
+    });
+
+    // The pinned key protects the referee, which only the host runs; a viewer's
+    // merge of the host's mods would differ from its own solo merge.
+    it("neither records nor checks the pinned unit list", async () => {
+      const fixture = viewerScene();
+      fixture.ctx.sessionStorage.setItem(
+        "gw_server_mods_pinned_unit_list",
+        "a different list"
+      );
+
+      await run(fixture);
+      await run(fixture, { battle: true });
+
+      assert.equal(fixture.alarm("unit_list_pinned").length, 0);
+      assert.equal(
+        fixture.ctx.sessionStorage.getItem("gw_server_mods_pinned_unit_list"),
+        "a different list"
+      );
+    });
+
+    // spec:// keeps a path's first read, so a viewer's probe would hand the
+    // host's list to the referee of a later solo battle.
+    it("does not read the referee's spec:// list", async () => {
+      const fixture = viewerScene();
+
+      assert.equal(await run(fixture), true);
+
+      assert.equal(
+        fixture.$.ajaxCalls.some(
+          (call) => call.url === "spec://pa/units/unit_list.json"
+        ),
+        false
+      );
+    });
+
+    it("mounts only those inside a teardown's rebuild", async () => {
+      const fixture = viewerScene();
+
+      await fixture.ns.mount.beforeContentRemount();
+
+      assert.deepEqual(
+        fixture.api.calls.zipMount.map((call) => call[0]),
+        ["/host.zip"]
+      );
+    });
+  });
+
   it("leaves the renderer alone during a battle", async () => {
     const fixture = scene();
     const reported = stages(fixture);

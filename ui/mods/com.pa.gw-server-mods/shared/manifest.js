@@ -166,8 +166,9 @@
   }
 
   // A faction splits its art: models in the server mod, textures in the client
-  // mod it names in `companions`. See design.md.
-  function pairedClientMods() {
+  // mod it names in `companions`. `mods`, when given, limits the pairing to
+  // those server mods. See design.md.
+  function pairedClientMods(mods) {
     var records;
     var clientRecords;
 
@@ -182,6 +183,14 @@
       clientRecords = fallbackClientMods();
     } else {
       return [];
+    }
+
+    if (_.isArray(mods)) {
+      var kept = _.map(mods, "identifier");
+
+      records = _.filter(records, function (mod) {
+        return _.includes(kept, normalizeIdentifier(mod && mod.identifier));
+      });
     }
 
     var wanted = [];
@@ -388,6 +397,16 @@
     return viewing() ? hostMods() : null;
   }
 
+  // What this client mounts: on a co-op viewer, the same mods the scene list
+  // keeps, since the host's server runs no others. See design.md.
+  function serverModsToMount() {
+    return sharedScenesMods(activeServerMods(), viewerHostMods());
+  }
+
+  function viewingHost() {
+    return viewerHostMods() !== null;
+  }
+
   function writeScenes(mods, identifiers) {
     scenesCache = unionScenes(sharedScenesMods(mods, identifiers));
 
@@ -508,6 +527,8 @@
     listed: listed,
     storeRead: storeRead,
     activeServerMods: activeServerMods,
+    serverModsToMount: serverModsToMount,
+    viewingHost: viewingHost,
     serverModInfo: serverModInfo,
     scenes: scenes,
     scenesStored: scenesStored,
