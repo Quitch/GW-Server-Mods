@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Fixed co-op Galactic War letting a player join without a server mod the host enabled after its last battle in the same session
+- Fixed a rare case where co-op Galactic War let a player join without a server mod the host runs
 
 ## v1.6.1 - 2026-10-28
 
