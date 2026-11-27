@@ -26,8 +26,10 @@ The three that have actually caused bugs here:
   `Object.defineProperty` accessor, not read once.** `model.send_message`,
   `handlers.request_client_mod_manifest` and `api.file.unmountAllMemoryFiles` are all
   assigned after mod scripts run. Reading them at load time silently patches nothing.
-- **Mounting is not registering.** Files become readable, but models and textures stay
-  unknown to the renderer until `api.content.remount()`. Never call it during a battle.
+- **A content rebuild re-resolves what is loaded.** `api.content.remount()` resolves every
+  loaded model and texture again against what is mounted at that moment, so a rebuild with
+  the root zips unmounted puts modded art back to stock. A mount alone changes nothing
+  already loaded. Never call it during a battle.
 - **A faction's art is split across its server and client mods.** Models in one, textures
   in the other. Mount only one and units render in white.
 

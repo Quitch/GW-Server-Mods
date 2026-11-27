@@ -20,9 +20,10 @@
       var self = this;
       var args = arguments;
 
-      // With every seam taken, the referee's own teardown registers the
+      // With every seam taken, the referee's own teardown rebuilds the
       // content over the root zips; without them nothing else would, and a
-      // battle must never start with the models unregistered. See design.md.
+      // battle must never start with models resolved without them.
+      // See design.md.
       var options = ns.hooks.installed()
         ? { remountContent: false, battle: true }
         : { battle: true };
