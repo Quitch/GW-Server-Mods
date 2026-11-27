@@ -116,6 +116,33 @@
     }
   }
 
+  // See design.md.
+  var STORE_WAIT_MS = 15000;
+
+  function installedModsRead() {
+    var ready = _.get(root.CommunityModsManager, "installedMods.ready");
+
+    if (!ready || !_.isFunction(ready.then)) {
+      return Promise.resolve();
+    }
+
+    return new Promise(function (resolve) {
+      var timer = setTimeout(function () {
+        ns.log(
+          "Community Mods store not read after 15 s; declaring what is listed, if anything"
+        );
+        resolve();
+      }, STORE_WAIT_MS);
+
+      function read() {
+        clearTimeout(timer);
+        resolve();
+      }
+
+      Promise.resolve(ready).then(read, read);
+    });
+  }
+
   function patchStartGame() {
     if (!api.net || !_.isFunction(api.net.startGame)) {
       return false;
@@ -144,8 +171,10 @@
             return previous(region, mode, startParams);
           })
           .then(function (data) {
-            applyIdentifiers();
-            return data;
+            return installedModsRead().then(function () {
+              applyIdentifiers();
+              return data;
+            });
           })
       );
     };

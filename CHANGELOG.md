@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Fixed Galactic War telling you to restart PA when a server mod without units, such as an AI mod, was enabled, disabled, or updated while Community Mods' unit list merge is off
+- Fixed a rare case where Galactic War kept a faction's units after you disabled it, until PA was restarted
+- Fixed a rare case where co-op Galactic War let a player join without a server mod the host runs
 
 ## v1.6.1 - 2026-10-28
 
