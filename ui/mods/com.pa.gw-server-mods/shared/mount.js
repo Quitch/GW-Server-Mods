@@ -206,9 +206,8 @@
       return Promise.resolve(generation);
     }
 
-    var mods = ns.manifest
-      .activeServerMods()
-      .concat(ns.manifest.pairedClientMods());
+    var active = ns.manifest.serverModsToMount();
+    var mods = active.concat(ns.manifest.pairedClientMods(active));
 
     if (!mods.length) {
       return Promise.resolve(generation);
@@ -450,14 +449,14 @@
   // verify() is the first read of the referee's spec:// list, and spec:// keeps
   // that read for the whole process, so a later battle with another merge
   // still gets the first one. sessionStorage lives as long. A key that is not
-  // a string is a merge that failed, which says nothing about the set.
-  // See design.md.
+  // a string is a merge that failed, which says nothing about the set. A
+  // co-op viewer skips it. See design.md.
   var PINNED_KEY = "gw_server_mods_pinned_unit_list";
 
   function checkPinnedUnitList(current) {
     var pinned;
 
-    if (!_.isString(current)) {
+    if (!_.isString(current) || ns.manifest.viewingHost()) {
       return;
     }
 
@@ -544,10 +543,13 @@
   // A folder-installed server mod the client has to render cannot be made
   // visible to it. An AI-only one is unaffected, so this waits for the
   // classification rather than warning about every folder mod.
-  function reportUnmountableMods() {
+  function reportUnmountableMods(mods) {
+    var mounting = _.map(mods, "identifier");
     var stranded = _.filter(
       ns.manifest.clientRelevantServerMods(),
-      "fileSystem"
+      function (mod) {
+        return mod.fileSystem && _.includes(mounting, mod.identifier);
+      }
     );
 
     _.forEach(stranded, function (mod) {
@@ -565,17 +567,22 @@
       checks.push(probe("coui:/" + ns.manifest.modRoot(mod) + "modinfo.json"));
     });
 
-    // The referee's own input.
-    checks.push(probe("spec://pa/units/unit_list.json"));
+    // The referee's own input, so a viewer skips it. See design.md.
+    var referee = !ns.manifest.viewingHost();
+
+    if (referee) {
+      checks.push(probe("spec://pa/units/unit_list.json"));
+    }
 
     return ns.settled(checks).then(function (results) {
       var ok = !_.includes(results, false);
+      var modCount = mods.length;
 
       if (!ok) {
         ns.alarm("probe_failed", {
           manifest: results[0],
-          mods: results.slice(1, results.length - 1),
-          unitList: results[results.length - 1],
+          mods: results.slice(1, 1 + modCount),
+          unitList: referee ? results[1 + modCount] : null,
         });
       }
 
@@ -635,7 +642,7 @@
     return timed(
       timing,
       "root",
-      mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+      mountRoots(mods.concat(ns.manifest.pairedClientMods(mods)), generation)
     )
       .then(function (result) {
         roots = result;
@@ -662,7 +669,7 @@
     return timed(
       timing,
       "root",
-      mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+      mountRoots(mods.concat(ns.manifest.pairedClientMods(mods)), generation)
     )
       .then(function () {
         return timed(
@@ -685,7 +692,7 @@
         ]);
       })
       .then(function () {
-        reportUnmountableMods();
+        reportUnmountableMods(mods);
         checkPinnedUnitList(mergeKey);
 
         return timed(timing, "verify", verify(mods));
@@ -838,7 +845,7 @@
     }
 
     var mounting = Promise.resolve(ns.manifest.load()).then(function () {
-      mods = ns.manifest.activeServerMods();
+      mods = ns.manifest.serverModsToMount();
 
       ns.manifest.rememberScenes(mods);
 

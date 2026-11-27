@@ -166,8 +166,9 @@
   }
 
   // A faction splits its art: models in the server mod, textures in the client
-  // mod it names in `companions`. See design.md.
-  function pairedClientMods() {
+  // mod it names in `companions`. `mods`, when given, limits the pairing to
+  // those server mods. See design.md.
+  function pairedClientMods(mods) {
     var records;
     var clientRecords;
 
@@ -182,6 +183,16 @@
       clientRecords = fallbackClientMods();
     } else {
       return [];
+    }
+
+    if (_.isArray(mods)) {
+      var kept = _.map(mods, function (mod) {
+        return normalizeIdentifier(mod && mod.identifier);
+      });
+
+      records = _.filter(records, function (mod) {
+        return _.includes(kept, normalizeIdentifier(mod && mod.identifier));
+      });
     }
 
     var wanted = [];
@@ -403,6 +414,24 @@
     return viewing() ? hostMods() : null;
   }
 
+  // See design.md.
+  function serverModsToMount() {
+    return sharedScenesMods(activeServerMods(), viewerHostMods());
+  }
+
+  function viewingHost() {
+    return viewerHostMods() !== null;
+  }
+
+  // See design.md.
+  function forgetHost() {
+    try {
+      localStorage.removeItem(HOST_MODS_KEY);
+    } catch (e) {
+      ns.log("host server mods not cleared", { error: String(e) });
+    }
+  }
+
   function writeScenes(mods, identifiers) {
     scenesCache = unionScenes(sharedScenesMods(mods, identifiers));
 
@@ -523,6 +552,9 @@
     listed: listed,
     storeRead: storeRead,
     activeServerMods: activeServerMods,
+    serverModsToMount: serverModsToMount,
+    viewingHost: viewingHost,
+    forgetHost: forgetHost,
     serverModInfo: serverModInfo,
     scenes: scenes,
     scenesStored: scenesStored,

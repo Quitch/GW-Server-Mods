@@ -672,6 +672,34 @@ scripts but only AI trees would lose them on a viewer; every server mod with bat
 scripts in the measured set (Bugs, Exiles, Experimentals, Thorosmen, Second Wave) also ships
 `pa/units`.
 
+The root mounts follow the same list. A server mod at `/` replaces base files on this client,
+so a viewer that mounted one the host does not run would read and draw content the battle
+does not use: a balance mod's unit specs in its UI, a replaced model or effect in its view.
+`manifest.serverModsToMount()` applies the same filter as the scene list, and a run and the
+content accessor's root batch mount only what it returns, with only those mods' companions.
+Stock resets `gw_campaign_role` to `solo` when a viewer leaves the session, is disconnected,
+or loads `gw_play` without `gw_campaign`, but not on `exitGame` (`gw_play.js:280`). After a
+viewer exits to the main menu that way, the role still reads `viewer` in `gw_start`. A war being
+created is never viewed, so `gw_start/mount.js` forgets the stored host list before it
+mounts.
+
+Root mounts only add. A server mod this client mounted earlier in the same session, in its
+own solo war for example, stays at `/` when it later views a host that does not run it, until
+PA restarts. Measured on build 124739: the join's two `Resetting game state` blocks did not
+unmount it, and its files still served in the viewer's co-op `gw_play`. A solo player who
+disables a faction mid-session keeps that zip mounted the same way.
+
+A viewer therefore merges a different unit list from the one its own server mods give. While
+viewing it neither records nor checks the `unit_list_pinned` key, and `verify()` does not
+probe `spec://pa/units/unit_list.json`: both exist for the referee, which only the host runs.
+Measured on build 124739 with a viewer whose own set had one more faction than the host's:
+
+- With the check, viewing and then playing solo in one session raised `unit_list_pinned`.
+  After a battle in between, `spec://` served the full solo list, so the alarm was false.
+- With the probe, the viewer's read pinned the host's 664-unit list. After leaving the
+  session `spec://` still served 664 while `coui://` served 687, so the next solo battle's
+  referee would have lost the extra faction.
+
 Where it runs: `live_game` (`ui.js`, which also loads the `shared_build` share,
 because `build.js` consumed that list before any scene script ran),
 `live_game_build_bar` and `live_game_players`. The main menu is not covered: a server

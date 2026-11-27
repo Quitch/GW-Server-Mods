@@ -189,6 +189,41 @@ describe("manifest.pairedClientMods", () => {
     assert.equal(paired[0].displayName, "Faction");
   });
 
+  it("pairs only the companions of the server mods it is given", () => {
+    const { ns } = scene({
+      cmmOptions: {
+        serverMods: [
+          mod({ identifier: "Com.Kept", companions: ["com.kept-client"] }),
+          mod({
+            identifier: "com.dropped",
+            companions: ["com.dropped-client"],
+          }),
+        ],
+        clientMods: [
+          mod({ identifier: "com.kept-client" }),
+          mod({ identifier: "com.dropped-client" }),
+        ],
+      },
+    });
+
+    const kept = ns.manifest
+      .activeServerMods()
+      .filter((m) => m.identifier === "com.kept");
+
+    assert.deepEqual(
+      ns.manifest.pairedClientMods(kept).map((m) => m.identifier),
+      ["com.kept-client"]
+    );
+    assert.deepEqual(ns.manifest.pairedClientMods([]), []);
+    // A caller on the public namespace may pass Community Mods' raw records.
+    assert.deepEqual(
+      ns.manifest
+        .pairedClientMods([{ identifier: "Com.Kept" }])
+        .map((m) => m.identifier),
+      ["com.kept-client"]
+    );
+  });
+
   it("logs when a companion is not active", () => {
     const fixture = scene({
       cmmOptions: {
@@ -643,6 +678,23 @@ describe("manifest.scenes", () => {
         live_game: [A, C],
       });
       assert.deepEqual(fixture.ns.manifest.scenes("live_game"), [A, C]);
+    });
+
+    it("mounts the same mods the scene list keeps", () => {
+      const fixture = scene({
+        cmmOptions: { serverMods: mods() },
+        stubs: {
+          localStorage: fakeSessionStorage({
+            [HOST]: JSON.stringify(["com.a"]),
+          }),
+          sessionStorage: viewer(),
+        },
+      });
+
+      assert.deepEqual(
+        fixture.ns.manifest.serverModsToMount().map((m) => m.identifier),
+        ["com.a", "com.c"]
+      );
     });
 
     // A host list left from an earlier co-op session must not filter a solo
