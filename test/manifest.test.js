@@ -337,6 +337,11 @@ describe("manifest.clientRelevantServerMods", () => {
       ns.manifest.clientRelevantServerMods().map((m) => m.identifier),
       ["com.a"]
     );
+    // The gate's list keeps every mod not classified as server-only.
+    assert.deepEqual(
+      ns.manifest.serverModsToMatch().map((m) => m.identifier),
+      ["com.a", "com.c"]
+    );
   });
 
   it("treats a corrupt persisted classification as unknown", () => {
@@ -371,28 +376,6 @@ describe("manifest.clientRelevantServerMods", () => {
 });
 
 describe("manifest.serverModsToMatch", () => {
-  it("keeps every mod not classified as server-only", () => {
-    const { ns } = scene({
-      stubs: {
-        sessionStorage: fakeSessionStorage({
-          [RELEVANCE_KEY]: JSON.stringify({ "com.a": true, "com.b": false }),
-        }),
-      },
-      cmmOptions: {
-        serverMods: [
-          mod({ identifier: "com.a" }),
-          mod({ identifier: "com.b" }),
-          mod({ identifier: "com.c" }),
-        ],
-      },
-    });
-
-    assert.deepEqual(
-      ns.manifest.serverModsToMatch().map((m) => m.identifier),
-      ["com.a", "com.c"]
-    );
-  });
-
   it("keeps every mod before any classification", () => {
     const { ns } = scene({
       cmmOptions: {
