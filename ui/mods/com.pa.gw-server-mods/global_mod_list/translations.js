@@ -8,7 +8,7 @@
   }
 
   try {
-    // The files in translations/ other than the en-US catalog. See design.md.
+    // See design.md.
     translations.register("com.pa.gw-server-mods", {
       languages: [
         "de",

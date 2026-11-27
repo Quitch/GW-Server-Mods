@@ -811,9 +811,11 @@ stays English.
 from `global_mod_list` and from no scene list. A `global_mod_list` script runs on every
 page before the stock scene code, which is the only place early enough: by the time a
 scene-list script runs, the scene has translated its static HTML and cached some `loc()`
-results. That costs a synchronous read of the player's language file on every panel of
-every page, and a second for a regional locale such as `de-AT`, which falls back to `de`;
-English reads nothing. Mod Translations' own README makes `global_mod_list` the only
+results. That costs a synchronous read on every panel of every page: one for each file of
+the player's chain that the mod ships, so at most one here, and none for English or for a
+language with no file. Mod Translations 1.1.0 ignores the list below and reads the whole
+chain, a second read for a regional locale such as `de-AT`, which falls back to `de`, and a
+404 for each missing file. Mod Translations' own README makes `global_mod_list` the only
 supported place, and GWO already pays the same cost.
 
 The call passes `languages`, the names of the files in `translations/` other than the
