@@ -591,43 +591,58 @@ would arrive only once the mount had finished - the unindicated wait this exists
 
 ## Strategic icons
 
-The icon atlas is built once, at startup. `icon_atlas.js` holds a hardcoded list of 132
-names, mods extend it through the `icon_atlas` scene, and `sendIconList()` hands the
-result to the engine. Nothing rebuilds it: a name pushed later is accepted and ignored,
-which is why a modded unit shows the fallback dot and why re-sending the list during a
-battle changes nothing.
+`icon_atlas.js` holds a hardcoded list of 132 names, mods extend it through the
+`icon_atlas` scene, and `sendIconList()` hands the result to the engine. A name the list
+does not carry gets no atlas entry, which is why a modded unit shows the fallback dot.
+
+The engine rebuilds the atlas whenever the mounted files change. Each change logs
+`Mounted files changed; reloading the icon atlases`, and both atlas views (`[JS/IconAtlas]`
+and `[JS/SpecialIconAtlas]`) reload and run their mod scripts again. Seen on build 124739,
+2026-11-27:
+
+- On CEF, `icons.js` logged `added=384` at startup and `added=448` once this mod's root
+  mounts were in place. The 64 extra names are the icons that exist only in active server
+  zips: 42 in MLA Unit Addon and 23 in Experimentals, one of them in both. In a co-op battle,
+  an allied unit whose icon ships only in the MLA Unit Addon server zip drew with that icon.
+- On Coherent, a server zip mounted at `/` and a memory file mounted after it logged the same
+  reload, and both views ran their mod scripts again. That client had no mods enabled, so
+  `icons.js` itself did not run there.
+
+A referee teardown unmounts the zips for a moment, and the views then send partial lists
+(`added=3`, `added=189` and `added=384` were seen). Each was followed by a full list before
+the battle, because the root mounts that end a teardown are a mount change too. The battle
+draws with the list sent after the last mount change.
 
 Legion does ship `ui/mods/com.pa.legion-expansion/icon_atlas.js` naming its own icons.
 That file is delivered through the **server mods' UI list**, which only loads when server
 mods are mounted at UI-load time - so skirmish gets it and Galactic War never does.
 
 `icon_atlas/icons.js` sidesteps that by naming every icon on disk rather than only the
-ones the base game knows. It needs no mounting: a mod shipping strategic icons shadows
-them into `ui/main/atlas/icon_atlas/img/strategic_icons/`, and client mods are mounted
-before this scene runs. Listing is async and the scene sends its list as soon as the file
-returns, so `sendIconList` is wrapped rather than raced - the scene's own call triggers
-the enumeration and the list goes out once, complete.
+ones the base game knows. A mod shipping strategic icons shadows them into
+`ui/main/atlas/icon_atlas/img/strategic_icons/`, and because the views run the script again
+on every mount change, the listing covers whatever is mounted then: client mods, and server
+zips once this mod has put them at `/`. Listing is async and the scene sends its list as soon
+as the file returns, so `sendIconList` is wrapped rather than raced - the scene's own call
+triggers the enumeration and the list goes out once, complete.
 
-That makes one requirement of a faction mod: **its `icon_si_*.png` files must ship in the
-client half**, at `ui/main/atlas/icon_atlas/img/strategic_icons/`. No server zip is mounted
-when the atlas is built, so icons that exist only in a server zip are never enumerated and
-every unit of that faction keeps the fallback dot. The `icon_atlas` scene script that names
-them may stay in the server half, where skirmish picks it up. Legion, Bugs, and Exiles are
-built this way. This mod does not read active server zips with `api.file.zip.catalog` in
-this scene and mount their icon directory before `sendIconList`, because strategic icons are
-one case of a wider rule: content only the client uses belongs in the client half. The
-client half is downloaded once while the server half is uploaded and downloaded every
-session, so icons, images, and animations in a server zip cost every game whether or not
-Galactic War is involved. Icons are simply the case where the wrong half is a defect rather
-than only a larger download.
+A faction mod should still ship its `icon_si_*.png` files in the client half, at
+`ui/main/atlas/icon_atlas/img/strategic_icons/`, as it should any content only the client
+uses. The client half is downloaded once while the server half is uploaded and downloaded
+every session, so icons, images, and animations in a server zip cost every game whether or
+not Galactic War is involved. An icon left in the server half does reach Galactic War on CEF
+(Coherent showed the same reload, but `icons.js` was not run there): the cost is the
+download, not the icon. The `icon_atlas` scene script that names them may stay
+in the server half, where skirmish picks it up. Legion, Bugs, and Exiles are built this way.
 
-One known limit. The atlas is built before any mount exists, so this scene cannot use
-the server mods' own `icon_atlas` scripts the way the battle scenes below use theirs, and
-enumerates the directory instead. Atlas capacity is not a concern: the engine packs the
-atlas into a roughly square texture bounded only by the GPU's maximum texture size, which
-is 16k x 16k on current hardware. At 52 x 52 per icon that is a budget of roughly 99,000
-icons (confirmed by the PA developers, 2026-09-20), so the 349 names measured with three
-factions loaded are nowhere near it.
+This scene loads `icons.js` alone, without `shared/server_ui.js`, so it does not run the
+server mods' own `icon_atlas` scripts the way the battle scenes below run theirs. Enumerating
+the directory covers the icons those scripts name, and any that no script names. Atlas
+capacity is not
+a concern: the engine packs the atlas into a roughly square texture bounded only by the
+GPU's maximum texture size, which is 16k x 16k on current hardware. At 52 x 52 per icon that
+is a budget of roughly 99,000 icons (confirmed by the PA developers, 2026-09-20). The list in
+the setup measured above held the 132 stock names, any other mods pushed, and the 448 this
+script added, nowhere near it.
 
 ## Server mod scene scripts
 
