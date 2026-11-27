@@ -8,7 +8,22 @@
   }
 
   try {
-    translations.register("com.pa.gw-server-mods");
+    // The files in translations/ other than the en-US catalog. See design.md.
+    translations.register("com.pa.gw-server-mods", {
+      languages: [
+        "de",
+        "es-ES",
+        "fr",
+        "it",
+        "ja",
+        "ko",
+        "nl",
+        "pl-PL",
+        "ru",
+        "zh-CN",
+        "zh-TW",
+      ],
+    });
   } catch (e) {
     console.error(
       "[GW-SM] translations not registered " + ((e && e.message) || e)

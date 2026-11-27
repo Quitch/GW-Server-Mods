@@ -813,8 +813,16 @@ page before the stock scene code, which is the only place early enough: by the t
 scene-list script runs, the scene has translated its static HTML and cached some `loc()`
 results. That costs a synchronous read of the player's language file on every panel of
 every page, and a second for a regional locale such as `de-AT`, which falls back to `de`;
-English reads nothing. A language with no file reads a 404. Mod Translations' own README
-makes `global_mod_list` the only supported place, and GWO already pays the same cost.
+English reads nothing. Mod Translations' own README makes `global_mod_list` the only
+supported place, and GWO already pays the same cost.
+
+The call passes `languages`, the names of the files in `translations/` other than the
+catalog. Mod Translations then reads only the files of the player's chain that the mod ships.
+Without the list it read every chain entry, and on CEF each missing file logs
+`ERROR CEF webview resource not found` on every panel: `zh.json` for zh-CN, `de-AT.json` for
+de-AT, and so on, for 18 of the 25 non-English languages. Mod Translations 1.1.0 ignores the
+option, so the lines stop with its next release. A stale list drops a language with no error,
+so `test/translations.test.js` checks the list against the folder.
 
 `global_mod_list` scripts run in Community Mods' priority order. Mod Translations has
 priority 50 and this mod the default 100, so `window.ModTranslations` exists when the
