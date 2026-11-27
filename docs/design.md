@@ -700,8 +700,10 @@ in one scene and the gate that reads it runs in another, and each scene is a sep
 with its own copy of this module. Held in memory alone, the gate never sees a
 classification and silently falls back to requiring everything.
 
-Until a classification exists the gate does require every active server mod, rather than
-none.
+The gate judges each mod on its own: an active server mod that no mount has classified
+yet is required, rather than dropped, whether or not the others have been classified. The
+classification only grows during a process, so a mod enabled after the last mount that ran
+has no entry until the next one.
 
 |                                 | Host publishes | Viewer reports                           |
 | ------------------------------- | -------------- | ---------------------------------------- |

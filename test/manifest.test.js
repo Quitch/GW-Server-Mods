@@ -352,6 +352,46 @@ describe("manifest.clientRelevantServerMods", () => {
   });
 });
 
+describe("manifest.serverModsToMatch", () => {
+  it("keeps every mod not classified as server-only", () => {
+    const { ns } = scene({
+      stubs: {
+        sessionStorage: fakeSessionStorage({
+          [RELEVANCE_KEY]: JSON.stringify({ "com.a": true, "com.b": false }),
+        }),
+      },
+      cmmOptions: {
+        serverMods: [
+          mod({ identifier: "com.a" }),
+          mod({ identifier: "com.b" }),
+          mod({ identifier: "com.c" }),
+        ],
+      },
+    });
+
+    assert.deepEqual(
+      ns.manifest.serverModsToMatch().map((m) => m.identifier),
+      ["com.a", "com.c"]
+    );
+  });
+
+  it("keeps every mod before any classification", () => {
+    const { ns } = scene({
+      cmmOptions: {
+        serverMods: [
+          mod({ identifier: "com.a" }),
+          mod({ identifier: "com.b" }),
+        ],
+      },
+    });
+
+    assert.deepEqual(
+      ns.manifest.serverModsToMatch().map((m) => m.identifier),
+      ["com.a", "com.b"]
+    );
+  });
+});
+
 describe("manifest module", () => {
   it("does not load twice into one scope", () => {
     const { ctx, ns } = scene();
