@@ -2072,10 +2072,7 @@ describe("the pinned unit list", () => {
       const first = await keyFor(undefined, off([mod()]));
       const key = first.storage.store[PINNED];
 
-      const updated = await keyFor(
-        key,
-        off([mod({ version: "2.0.0", installedPath: "/new.zip" })])
-      );
+      const updated = await keyFor(key, off([mod({ version: "2.0.0" })]));
 
       assert.equal(updated.alarm("unit_list_pinned").length, 1);
     });
