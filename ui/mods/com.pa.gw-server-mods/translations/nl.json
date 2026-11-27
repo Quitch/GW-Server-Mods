@@ -46,8 +46,5 @@
   },
   "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
     "message": "Deze servermod is als map geïnstalleerd. De Galactische Oorlog kan hem niet gebruiken. Installeer hem als zip-bestand via Community-mods."
-  },
-  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
-    "message": "Je servermods zijn gewijzigd nadat je de sterrenkaart van de Galactische Oorlog voor het eerst opende. Strijden houden de eenhedenlijst die PA toen las, dus er kunnen eenheden ontbreken. Start PA opnieuw en begin daarna de strijd."
   }
 }

@@ -127,9 +127,7 @@ describe("the patched fight", () => {
 
     // Every seam is taken here, so the referee's teardown registers the
     // content and the run before the fight need not.
-    assert.deepEqual(runs, [
-      { options: { remountContent: false, battle: true }, fought: 0 },
-    ]);
+    assert.deepEqual(runs, [{ options: { remountContent: false }, fought: 0 }]);
     assert.deepEqual(fixture.fights, [{ self, args: [1, 2] }]);
     assert.equal(outcome, "fought");
   });
@@ -144,7 +142,7 @@ describe("the patched fight", () => {
 
     fixture.model.fight();
 
-    assert.deepEqual(runs, [{ battle: true }]);
+    assert.deepEqual(runs, [{}]);
   });
 
   it("does not fight until the mount settles", async () => {
@@ -174,7 +172,7 @@ describe("the patched fight", () => {
     fixture.model.fight();
     await flush();
 
-    assert.deepEqual(runs, [{ battle: true }]);
+    assert.deepEqual(runs, [{}]);
     assert.equal(fixture.fights.length, 1);
     assert.equal(
       fixture.console.lines.log.includes(

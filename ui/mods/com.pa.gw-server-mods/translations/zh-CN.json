@@ -47,9 +47,6 @@
   "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
     "message": "此服务器模组以文件夹形式安装。银河战争无法使用它。请通过社区模组以 zip 形式安装。"
   },
-  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
-    "message": "你首次进入银河战争星图后，服务器模组发生了变化。战斗会沿用 PA 当时读取的单位列表，因此可能缺少单位。请重新启动 PA，然后开始战斗。"
-  },
   "__first__  |  __next__": {
     "message": "__first__　｜　__next__"
   },

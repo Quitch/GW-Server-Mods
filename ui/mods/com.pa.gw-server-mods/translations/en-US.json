@@ -67,10 +67,6 @@
     "message": "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.",
     "description": "shared/alarm.js: alarm banner text for the filesystem_server_mod alarm, shown in the top-left corner of a Galactic War scene after the mod's name; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, and server mods take the game's own wording. The Mods menu is the start screen's MODS button, which the game does not translate, so keep MODS."
   },
-  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
-    "message": "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.",
-    "description": "shared/alarm.js: alarm banner text for the unit_list_pinned alarm, shown in the top-left corner of a Galactic War scene after the mod's name; an affected mod's identifier may follow in brackets. Keep \"GW Server Mods\" and \"PA\" in English. Community Mods, Galactic War, and server mods take the game's own wording. The Mods menu is the start screen's MODS button, which the game does not translate, so keep MODS."
-  },
   "__first__  |  __next__": {
     "message": "__first__  |  __next__",
     "description": "shared/alarm.js: what goes between two alarms in the banner. __first__ and __next__ are the alarm texts either side. Keep both placeholders; change only the separator between them."

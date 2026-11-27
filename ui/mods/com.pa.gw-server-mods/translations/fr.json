@@ -46,8 +46,5 @@
   },
   "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
     "message": "Ce mod de serveur est installé sous forme de dossier. La Guerre galactique ne peut pas l'utiliser. Installez-le sous forme de zip depuis Mods de la communauté."
-  },
-  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
-    "message": "Vos mods de serveur ont changé après votre première entrée sur la carte galactique de la Guerre galactique. Les batailles conservent la liste d'unités que PA a lue à ce moment-là, donc des unités peuvent manquer. Redémarrez PA, puis lancez la bataille."
   }
 }

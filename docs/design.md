@@ -125,10 +125,8 @@ as `coui://pa/units/unit_list.json` dropping from 575 units to 332 after
 that sequence when it primes race cells, so `mountRootOnly` re-mounts the payload of the
 last merge, cached in module scope, after its root mounts settle. It cannot call
 `mergeUnitList` instead: the merge reads each mod's list through `spec://server_mods/<id>/…`,
-those mounts exist only once `CommunityModsManager.mountServerMods` has run on the battle
-path, and `spec://` pins a path's first read for the process, so a merge attempted in
-`gw_start` would pin empty reads and break every later battle's merge. The cache is
-scene-scoped on purpose: the harmful sequence — a battle mount followed by a root-only
+and those mounts exist only once `CommunityModsManager.mountServerMods` has run on the battle
+path, which `gw_start` never does. The cache is scene-scoped on purpose: the harmful sequence — a battle mount followed by a root-only
 one — happens inside `gw_play`, `gw_start` has no merge to restore, and a merge carried
 across scenes could name the wrong mod set. The restore must also never run after the
 referee's cooked overwrite, which holds because no scene issues a root-only run once a
@@ -160,60 +158,35 @@ Only a read taken before the first root batch of the process is the base list, s
 read is not retried after one. Each root batch sets `gw_server_mods_root_batch` in
 `sessionStorage` as it starts, and so does a page that finds an earlier page's zips still
 mounted through the root mount record. Once it is set, a missing base list stays missing: a
-retry would store the list of whichever faction zip mounted last, every later merge would
-carry that faction's units even after it is disabled, and the changed merge would raise a
-false `unit_list_pinned`. A reset that unmounts the zips leaves the mark in place, which costs
-only the fallback above.
+retry would store the list of whichever faction zip mounted last, and every later merge would
+carry that faction's units even after it is disabled. A reset that unmounts the zips leaves the
+mark in place, which costs only the fallback above.
 
 The same step also sets a page flag, so a page whose `sessionStorage` cannot be written still
 stops after its own batch. It does not cover the next page: there the first run reads the base
 list before it reads the root mount record. With an unwritable store the base list itself
 cannot be kept either, so every new page reads it again, with or without the mark.
 
-**`spec://` caches a path after its first read, for the life of the process.** Measured
-directly: after mounting the merged list, `coui://pa/units/unit_list.json` returned 575 units
-and `spec://pa/units/unit_list.json` still returned the 332 it had served earlier, while a
-memory file at a path never read before was visible through `spec://` at once — so this is a
-cache, not mount precedence. The root list is therefore read through `coui://` (with a
-cache-busting query, which `spec://` rejects), and nothing in this mod touches
-`spec://pa/units/unit_list.json` until the merged file is in place; `verify()` probes it only
-afterwards. A `spec://` read taken earlier would pin the unmerged list for the referee.
+**`spec://` caches each path it reads until the engine next rebuilds its file system.**
+Measured on build 124739 with a memory file at a path of its own: after a first `spec://`
+read, a new file mounted at that path showed through `coui://` but not through `spec://` in the
+same page (CEF and Coherent), nor after a `reloadScene` or a page change (CEF). Every
+rebuild (the one that logs `Mounting …\media\ as /` and then `Init mods`) made `spec://` read the
+path again: `api.content.remount()` (CEF and Coherent), and entering `start`, a Galactic War
+connect, and leaving a battle (CEF). A path that returned 404 is not cached (CEF). `coui://` has no such cache, and the base list
+is read through it (with a cache-busting query, which `spec://` rejects).
 
-The same cache pins the first merge. Measured in `gw_play` with 11 server mods: with Bugs
-removed from the set and the run repeated, `coui://` went from 687 units to 558 while
-`spec://` stayed at 687, Bugs' 117 included; restoring Bugs brought `coui://` back to 687.
-So a faction enabled or disabled after the first battle mount of a process reaches the
-galaxy map but not the referee, and nothing a client mod can call clears the cache.
-`checkPinnedUnitList()` therefore keeps a key for the list the first battle mount left
-for the referee in `sessionStorage`, which lasts as long as the cache, and raises
-`unit_list_pinned`, telling the player to restart PA, when a later battle mount leaves a
-different one. The key is the merged units, sorted, so the order Community Mods lists the
-mods in does not count. With Community Mods' merge turned off, the referee reads the list of
-whichever zip shadowed the path, and only a zip that ships `pa/units/unit_list.json` can
-shadow it. The key is then the path and version of each zip whose
-`spec://server_mods/<id>/pa/units/unit_list.json` read returns a list, so enabling or
-updating a server mod with no unit list, such as an AI or a biome mod, leaves it alone. A new
-version of a zip that ships a list changes it even when the list is the same: `spec://` keeps
-that path's first read too, so the old and new lists cannot be compared. With no zip shipping
-a list, the key is the empty string, the same as a merge with no faction list to add, which
-leaves the base list. A merged list that could not be mounted says nothing about the set and
-is not checked; `unit_list_unmerged` already reports it. With the merge on it costs one sort
-and one string comparison per battle mount; with it off, one read of each zip's list as
-well.
-
-A battle with no server mods never reaches the merge, yet the referee still pins the base
-list. The patched `model.fight` marks its run with `battle: true`, and a marked run with no
-mods records the empty key, so enabling a faction afterwards alarms. The mark is needed
-because an empty active list is not evidence on its own: `connect_to_game`'s first run sees
-none before Community Mods has read its store, and a scene-entry run reads nothing through
-`spec://`, so a record there would raise a false alarm after a later toggle. The run also
-records only once Community Mods' installed-mods store has resolved
-(`manifest.storeRead()`). A Fight whose run is shared with one already in flight loses the
-mark, which costs a missed alarm, never a false one.
-
-The check assumes this mod's `verify()`, or the referee in a battle with no server mods, is
-the process's first `spec://` read of the list; a skirmish or another mod that read it first
-would pin a list this check never sees.
+The referee always reads after a rebuild. Stock `gw_referee.js`, and GWO's copy of it, read
+`spec://pa/units/unit_list.json` inside `api.file.unmountAllMemoryFiles().always(…)`.
+Community Mods answers that unmount with `remountClientMods`, which ends in
+`api.content.remount()`, and the hooks mount the zips and the merged list again before the
+callback runs (see [Keeping the mounts](#keeping-the-mounts)). Measured in `gw_play` on both backends: with Bugs
+dropped from the set and the run repeated, `spec://` kept the earlier 687 units while
+`coui://` held 558, and the referee's own sequence (the unmount, then the read) returned 558. So
+a faction enabled or disabled during a session reaches the next battle without a restart, and
+nothing here needs to track what `spec://` holds. With Community Mods' merge turned off the
+read order is the same, so the referee reads whichever zip's list is mounted at the read; that
+case was not measured in a battle.
 
 Community Mods generates a merged list of its own in `community-mods-server.zip`, but only
 when every mod's `unitList` had been populated by its asynchronous filesystem scan at the
@@ -426,8 +399,8 @@ skips the root mounts, and a root-only run that skipped them also skips the merg
 because nothing re-shadowed the memory file. The restore is therefore reached only after a
 teardown. A path set that changed - a faction toggled in Community Mods - mounts again whatever
 the generation, which is what keeps the 575 -> disable -> 336 -> re-enable -> 575 walk true
-through `coui://`. Through `spec://`, which the referee reads, the first list stays (see
-"More than one faction").
+through `coui://`. Through `spec://` the earlier list stays until the next rebuild, and the
+referee reads only after one (see "More than one faction").
 
 The content catalogue follows the same rule: `api.content.remount()` is recorded against the
 generation whose root mounts it covered, and a run whose generation is already registered skips
@@ -723,15 +696,8 @@ unmount it, and its files still served in the viewer's co-op `gw_play`. A solo p
 disables a faction mid-session keeps that zip mounted the same way.
 
 A viewer therefore merges a different unit list from the one its own server mods give. While
-viewing it neither records nor checks the `unit_list_pinned` key, and `verify()` does not
-probe `spec://pa/units/unit_list.json`: both exist for the referee, which only the host runs.
-Measured on build 124739 with a viewer whose own set had one more faction than the host's:
-
-- With the check, viewing and then playing solo in one session raised `unit_list_pinned`.
-  After a battle in between, `spec://` served the full solo list, so the alarm was false.
-- With the probe, the viewer's read pinned the host's 664-unit list. After leaving the
-  session `spec://` still served 664 while `coui://` served 687, so the next solo battle's
-  referee would have lost the extra faction.
+viewing, `verify()` does not probe `spec://pa/units/unit_list.json`: the probe checks the
+referee's input, and only the host runs the referee.
 
 Where it runs: `live_game` (`ui.js`, which also loads the `shared_build` share,
 because `build.js` consumed that list before any scene script ran),
@@ -962,7 +928,7 @@ faked; whether the engine behaves as faked is verified by loading the game.
     reads `"root":0` and `"content":0-5` in its `mounted server mods` line, and
     `coui://pa/units/unit_list.json` holds the merged count before and after; then disable a
     faction in Community Mods and re-enable it, and the count must drop and come back;
-    the battle mount after the change raises `unit_list_pinned`.
+    the referee's list for the battle after the change must hold the new count.
 11. An AI skirmish from `start` logs `not a Galactic War connect; hooks not installed` in
     `connect_to_game` and no `mounted server mods` line there, and `gw_server_mods_scenes`
     is gone from localStorage; a co-op viewer joining from the server browser logs

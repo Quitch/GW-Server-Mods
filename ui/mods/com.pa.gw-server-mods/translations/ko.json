@@ -46,8 +46,5 @@
   },
   "This server mod is installed as a folder. Galactic War cannot use it. Install it as a zip from Community Mods.": {
     "message": "이 서버 모드는 폴더로 설치되어 있습니다. 은하계 전쟁에서는 사용할 수 없습니다. 커뮤니티 모드에서 zip 파일로 설치하세요."
-  },
-  "Your server mods changed after you first entered the Galactic War galaxy map. Battles keep the unit list PA read then, so units may be missing. Restart PA, then start the battle.": {
-    "message": "은하계 전쟁 은하 지도에 처음 들어간 뒤 서버 모드가 변경되었습니다. 전투에는 PA가 그때 읽은 유닛 목록이 유지되므로 유닛이 누락될 수 있습니다. PA를 다시 시작한 다음 전투를 시작하세요."
   }
 }
