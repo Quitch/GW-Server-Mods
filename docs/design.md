@@ -157,12 +157,16 @@ lists: it costs four units in one faction combination, and must never cost a bat
 Only a read taken before the first root batch of the process is the base list, so a failed
 read is not retried after one. Each root batch sets `gw_server_mods_root_batch` in
 `sessionStorage` as it starts, and so does a page that finds an earlier page's zips still
-mounted through the root mount record; each also sets a page flag, for a store that cannot be
-written.
-Once either is set, a missing base list stays missing: a retry would store the list of
-whichever faction zip mounted last, every later merge would carry that faction's units even
-after it is disabled, and the changed merge would raise a false `unit_list_pinned`. A reset
-that unmounts the zips leaves the mark in place, which costs only the fallback above.
+mounted through the root mount record. Once it is set, a missing base list stays missing: a
+retry would store the list of whichever faction zip mounted last, every later merge would
+carry that faction's units even after it is disabled, and the changed merge would raise a
+false `unit_list_pinned`. A reset that unmounts the zips leaves the mark in place, which costs
+only the fallback above.
+
+The same step also sets a page flag, so a page whose `sessionStorage` cannot be written still
+stops after its own batch. It does not cover the next page: there the first run reads the base
+list before it reads the root mount record. With an unwritable store the base list itself
+cannot be kept either, so every new page reads it again, with or without the mark.
 
 **`spec://` caches a path after its first read, for the life of the process.** Measured
 directly: after mounting the merged list, `coui://pa/units/unit_list.json` returned 575 units

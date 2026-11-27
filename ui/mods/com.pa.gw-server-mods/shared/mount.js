@@ -145,10 +145,7 @@
     });
   }
 
-  // Set as the first root batch of the process starts, after which a read of
-  // the base list's path can return a faction's list, and by a page that finds
-  // an earlier page's zips still mounted. sessionStorage carries it across
-  // scenes; the page flag covers a store that cannot be written. See design.md.
+  // Set once root zips are known to be mounted in this process. See design.md.
   var ROOT_BATCH_KEY = "gw_server_mods_root_batch";
   var rootBatchStarted = false;
 
@@ -304,10 +301,8 @@
     return vanillaUnits;
   }
 
-  // Called before the first mount of a run, but only a process that has run no
-  // root batch yet still sees the base game there; after one, a failed first
-  // read is not retried. Resolves either way: a base list that cannot be read
-  // costs four units in one faction combination, and must never cost a battle.
+  // Resolves either way: a base list that cannot be read costs four units in
+  // one faction combination, and must never cost a battle. See design.md.
   function captureVanillaUnits() {
     if (loadVanillaUnits()) {
       return Promise.resolve(vanillaUnits);

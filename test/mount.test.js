@@ -935,7 +935,9 @@ describe("the merged unit list", () => {
     );
   });
 
-  it("does not read the base list in a page whose zips are still mounted", async () => {
+  // The page's first run reads the base list before it reads the root mount
+  // record; finding the zips still mounted stops every later read.
+  it("stops reading the base list once the page finds an earlier page's zips", async () => {
     const storage = fakeSessionStorage(undefined, { setItemThrows: true });
     let baseReads = 0;
     const fixture = scene({
