@@ -39,6 +39,10 @@ function createFakeCmm(options) {
   if (opts.installedStore !== undefined) {
     mgr.installedMods = { ready: { state: () => opts.installedStore } };
   }
+  // Or the Deferred itself, for code that waits on it.
+  if (opts.installedReady !== undefined) {
+    mgr.installedMods = { ready: opts.installedReady };
+  }
   if (opts.mergeUnitServerMods !== undefined) {
     mgr.mergeUnitServerMods = () => opts.mergeUnitServerMods;
   }

@@ -116,6 +116,36 @@
     }
   }
 
+  // Until Community Mods has read its installed-mods store no server mod is
+  // listed, so the identifiers wait for it, after the start so the server is
+  // not held up. The cap keeps a store that never loads from holding the
+  // connect. See design.md.
+  var STORE_WAIT_MS = 15000;
+
+  function installedModsRead() {
+    var ready = _.get(root.CommunityModsManager, "installedMods.ready");
+
+    if (!ready || !_.isFunction(ready.then)) {
+      return Promise.resolve();
+    }
+
+    return new Promise(function (resolve) {
+      var timer = setTimeout(function () {
+        ns.log(
+          "Community Mods store not read; declaring the listed server mods"
+        );
+        resolve();
+      }, STORE_WAIT_MS);
+
+      function read() {
+        clearTimeout(timer);
+        resolve();
+      }
+
+      Promise.resolve(ready).then(read, read);
+    });
+  }
+
   function patchStartGame() {
     if (!api.net || !_.isFunction(api.net.startGame)) {
       return false;
@@ -144,8 +174,10 @@
             return previous(region, mode, startParams);
           })
           .then(function (data) {
-            applyIdentifiers();
-            return data;
+            return installedModsRead().then(function () {
+              applyIdentifiers();
+              return data;
+            });
           })
       );
     };
