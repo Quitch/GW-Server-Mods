@@ -591,17 +591,20 @@ A faction mod should still ship its `icon_si_*.png` files in the client half, at
 `ui/main/atlas/icon_atlas/img/strategic_icons/`, as it should any content only the client
 uses. The client half is downloaded once while the server half is uploaded and downloaded
 every session, so icons, images, and animations in a server zip cost every game whether or
-not Galactic War is involved. An icon left in the server half does reach Galactic War: the
-cost is the download, not the icon. The `icon_atlas` scene script that names them may stay
+not Galactic War is involved. An icon left in the server half does reach Galactic War on CEF
+(Coherent showed the same reload, but `icons.js` was not run there): the cost is the
+download, not the icon. The `icon_atlas` scene script that names them may stay
 in the server half, where skirmish picks it up. Legion, Bugs, and Exiles are built this way.
 
-The views reload from the client mod list, which carries no server mod scene scripts in
-Galactic War, so this scene cannot use the server mods' own `icon_atlas` scripts the way the
-battle scenes below use theirs, and enumerates the directory instead. Atlas capacity is not
+This scene loads `icons.js` alone, without `shared/server_ui.js`, so it does not run the
+server mods' own `icon_atlas` scripts the way the battle scenes below run theirs. Enumerating
+the directory covers the icons those scripts name, and any that no script names. Atlas
+capacity is not
 a concern: the engine packs the atlas into a roughly square texture bounded only by the
 GPU's maximum texture size, which is 16k x 16k on current hardware. At 52 x 52 per icon that
-is a budget of roughly 99,000 icons (confirmed by the PA developers, 2026-09-20), so the 448
-names this script added to the stock list in the setup measured above are nowhere near it.
+is a budget of roughly 99,000 icons (confirmed by the PA developers, 2026-09-20). The list in
+the setup measured above held the 132 stock names, any other mods pushed, and the 448 this
+script added, nowhere near it.
 
 ## Server mod scene scripts
 
