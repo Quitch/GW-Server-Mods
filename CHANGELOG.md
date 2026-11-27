@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Fixed Galactic War telling you to restart PA after a server mod change that leaves the unit list alone, when Community Mods' unit list merge is off
+- Fixed Galactic War telling you to restart PA when a server mod without units, such as an AI mod, was enabled, disabled, or updated while Community Mods' unit list merge is off
 
 ## v1.6.1 - 2026-10-28
 

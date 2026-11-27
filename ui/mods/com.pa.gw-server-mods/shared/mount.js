@@ -361,21 +361,13 @@
     });
   }
 
-  // With the merge off the referee reads one of the lists the zips ship, so
-  // the key is each of those lists by mod, or "" - the base list's key - when
-  // no zip ships one. See design.md.
+  // See design.md.
   function unmergedKey(zips, modLists) {
-    var shipped = [];
-
-    _.forEach(zips, function (mod, index) {
-      if (_.isArray(modLists[index])) {
-        shipped.push(
-          mod.identifier + "\n" + modLists[index].slice().sort().join("\n")
-        );
-      }
+    var shipped = _.filter(zips, function (mod, index) {
+      return _.isArray(modLists[index]);
     });
 
-    return shipped.length ? "unmerged\n" + shipped.sort().join("\n\n") : "";
+    return shipped.length ? "unmerged\n" + rootKey(shipped) : "";
   }
 
   // Resolves with the key checkPinnedUnitList compares: the merged units

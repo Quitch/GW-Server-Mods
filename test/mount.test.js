@@ -2034,16 +2034,16 @@ describe("the pinned unit list", () => {
       return fixture;
     }
 
-    it("keys on the lists the zips ship", async () => {
+    it("keys on the zips that ship a list", async () => {
       const first = await keyFor(undefined, off([mod()]));
       const key = first.storage.store[PINNED];
 
-      assert.equal(key, "unmerged\ncom.example.server\n/pa/units/b.json");
+      assert.equal(key, "unmerged\n/download/com.example.server.zip@1.0.0");
       assert.deepEqual(first.codes(), []);
 
       const other = await keyFor(
         key,
-        off([mod({ identifier: "com.other" })], {
+        off([mod({ identifier: "com.other", installedPath: "/other.zip" })], {
           [OTHER_LIST]: JSON.stringify({ units: ["/pa/units/c.json"] }),
         })
       );
@@ -2066,7 +2066,9 @@ describe("the pinned unit list", () => {
       assert.deepEqual(withAi.codes(), []);
     });
 
-    it("ignores a new version whose list is unchanged", async () => {
+    // spec:// keeps a path's first read, so a new version's list cannot be
+    // compared with the old one; any new version of a list-shipping zip counts.
+    it("alarms on a new version of a zip that ships a list", async () => {
       const first = await keyFor(undefined, off([mod()]));
       const key = first.storage.store[PINNED];
 
@@ -2075,23 +2077,18 @@ describe("the pinned unit list", () => {
         off([mod({ version: "2.0.0", installedPath: "/new.zip" })])
       );
 
-      assert.deepEqual(updated.codes(), []);
+      assert.equal(updated.alarm("unit_list_pinned").length, 1);
     });
 
-    it("alarms when a zip's list changes", async () => {
-      const first = await keyFor(undefined, off([mod()]));
+    it("ignores a new version of a zip that ships no list", async () => {
+      const ai = (version) =>
+        mod({ identifier: "com.ai", installedPath: "/ai.zip", version });
+      const first = await keyFor(undefined, off([mod(), ai("1")]));
       const key = first.storage.store[PINNED];
 
-      const changed = await keyFor(
-        key,
-        off([mod()], {
-          [MOD_LIST]: JSON.stringify({
-            units: ["/pa/units/b.json", "/pa/units/d.json"],
-          }),
-        })
-      );
+      const updated = await keyFor(key, off([mod(), ai("2")]));
 
-      assert.equal(changed.alarm("unit_list_pinned").length, 1);
+      assert.deepEqual(updated.codes(), []);
     });
 
     it("keys as the base list when no zip ships one", async () => {
