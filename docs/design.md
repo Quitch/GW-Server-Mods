@@ -154,6 +154,16 @@ intent, which is why this is treated as a loss rather than a removal.
 later scene reuses it. A base list that cannot be read falls back to the union of the mod
 lists: it costs four units in one faction combination, and must never cost a battle.
 
+Only a read taken before the first root batch of the process is the base list, so a failed
+read is not retried after one. Each root batch sets `gw_server_mods_root_batch` in
+`sessionStorage` as it starts, and so does a page that finds an earlier page's zips still
+mounted through the root mount record; each also sets a page flag, for a store that cannot be
+written.
+Once either is set, a missing base list stays missing: a retry would store the list of
+whichever faction zip mounted last, every later merge would carry that faction's units even
+after it is disabled, and the changed merge would raise a false `unit_list_pinned`. A reset
+that unmounts the zips leaves the mark in place, which costs only the fallback above.
+
 **`spec://` caches a path after its first read, for the life of the process.** Measured
 directly: after mounting the merged list, `coui://pa/units/unit_list.json` returned 575 units
 and `spec://pa/units/unit_list.json` still returned the 332 it had served earlier, while a

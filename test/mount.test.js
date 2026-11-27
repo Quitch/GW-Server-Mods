@@ -883,6 +883,106 @@ describe("the merged unit list", () => {
     );
   });
 
+  // After the first root batch the base path serves whichever faction zip
+  // mounted last, so a retry would store that faction's list as the base.
+  function failingFirstBaseRead() {
+    let reads = 0;
+    return (url) => {
+      if (url === ROOT_LIST) {
+        reads += 1;
+        if (reads === 1) {
+          throw new Error("404");
+        }
+        return JSON.stringify({ units: ["/pa/units/shadowing.json"] });
+      }
+      if (url === MOD_LIST) {
+        return JSON.stringify({ units: ["/pa/units/faction.json"] });
+      }
+      return "";
+    };
+  }
+
+  it("does not retry a failed base read after this page's root batch", async () => {
+    const storage = fakeSessionStorage(undefined, { setItemThrows: true });
+    const fixture = scene({
+      ajax: failingFirstBaseRead(),
+      stubs: { sessionStorage: storage },
+    });
+
+    await run(fixture);
+    fixture.ns.mount.invalidate();
+    assert.equal(await run(fixture), true);
+
+    assert.equal(
+      fixture.$.ajaxCalls.filter((call) => call.url === ROOT_LIST).length,
+      1
+    );
+    const written = unitListMounts(fixture).map((call) =>
+      JSON.parse(call[0]["/pa/units/unit_list.json"])
+    );
+    assert.deepEqual(written[1].units, ["/pa/units/faction.json"]);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] base unit list not read: the root mounts shadow it"
+      ),
+      true
+    );
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] root mount mark not persisted"
+      ),
+      true
+    );
+  });
+
+  it("does not read the base list in a page whose zips are still mounted", async () => {
+    const storage = fakeSessionStorage(undefined, { setItemThrows: true });
+    let baseReads = 0;
+    const fixture = scene({
+      stubs: { sessionStorage: storage },
+      ajax: (url) => {
+        if (url === ROOT_RECORD_URL) {
+          return "/download/com.example.server.zip@1.0.0";
+        }
+        if (url === ROOT_LIST) {
+          baseReads += 1;
+          throw new Error("404");
+        }
+        return url.endsWith("unit_list.json")
+          ? JSON.stringify({ units: ["/pa/units/faction.json"] })
+          : "";
+      },
+    });
+
+    await run(fixture);
+    fixture.ns.mount.invalidate();
+    await run(fixture);
+
+    assert.equal(fixture.api.calls.zipMount.length, 1);
+    assert.equal(baseReads, 1);
+  });
+
+  it("does not retry a failed base read in a later scene", async () => {
+    const storage = fakeSessionStorage();
+    const ajax = failingFirstBaseRead();
+    const first = scene({ ajax, stubs: { sessionStorage: storage } });
+
+    await run(first);
+
+    const later = scene({ ajax, stubs: { sessionStorage: storage } });
+    assert.equal(await run(later), true);
+
+    assert.equal(
+      later.$.ajaxCalls.some((call) => call.url === ROOT_LIST),
+      false
+    );
+    assert.equal(storage.store.gw_server_mods_vanilla_units, undefined);
+    const written = JSON.parse(
+      unitListMounts(later)[0][0]["/pa/units/unit_list.json"]
+    );
+    assert.deepEqual(written.units, ["/pa/units/faction.json"]);
+  });
+
   it("still merges when Community Mods leaves the merge enabled", async () => {
     const fixture = scene({
       cmmOptions: { serverMods: [mod()], mergeUnitServerMods: true },

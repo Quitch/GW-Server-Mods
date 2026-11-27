@@ -134,6 +134,7 @@
 
     return rootMountsSurvived(key).then(function (survived) {
       if (survived) {
+        markRootBatch();
         rootMountedAt = generation;
         rootMountedFor = key;
 
@@ -144,8 +145,38 @@
     });
   }
 
+  // Set as the first root batch of the process starts, after which a read of
+  // the base list's path can return a faction's list, and by a page that finds
+  // an earlier page's zips still mounted. sessionStorage carries it across
+  // scenes; the page flag covers a store that cannot be written. See design.md.
+  var ROOT_BATCH_KEY = "gw_server_mods_root_batch";
+  var rootBatchStarted = false;
+
+  function markRootBatch() {
+    rootBatchStarted = true;
+
+    try {
+      sessionStorage.setItem(ROOT_BATCH_KEY, "true");
+    } catch (e) {
+      ns.log("root mount mark not persisted");
+    }
+  }
+
+  function rootBatchSeen() {
+    if (rootBatchStarted) {
+      return true;
+    }
+
+    try {
+      return sessionStorage.getItem(ROOT_BATCH_KEY) === "true";
+    } catch (e) {
+      return false;
+    }
+  }
+
   function mountBatch(mods, key, generation) {
     if (key.length) {
+      markRootBatch();
       writeRootRecord("", generation);
     }
 
@@ -273,12 +304,18 @@
     return vanillaUnits;
   }
 
-  // Called before the first mount of a run, so the read still sees the base
-  // game. Resolves either way: a base list that cannot be read costs four units
-  // in one faction combination, and must never cost a battle.
+  // Called before the first mount of a run, but only a process that has run no
+  // root batch yet still sees the base game there; after one, a failed first
+  // read is not retried. Resolves either way: a base list that cannot be read
+  // costs four units in one faction combination, and must never cost a battle.
   function captureVanillaUnits() {
     if (loadVanillaUnits()) {
       return Promise.resolve(vanillaUnits);
+    }
+
+    if (rootBatchSeen()) {
+      ns.log("base unit list not read: the root mounts shadow it");
+      return Promise.resolve(undefined);
     }
 
     return readUnitList("coui://pa/units/unit_list.json").then(
