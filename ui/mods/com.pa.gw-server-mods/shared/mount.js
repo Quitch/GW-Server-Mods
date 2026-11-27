@@ -342,13 +342,7 @@
     }
   }
 
-  // The last merge this scene mounted, kept so a root-only run can put it
-  // back: its zip mounts land at "/" after the memory file and re-shadow it.
-  // The merge itself cannot run there - its spec:/server_mods/<id>/ reads
-  // exist only once CommunityModsManager.mountServerMods has run.
-  // Scene-scoped on purpose: the harmful sequence - a battle mount then a
-  // root-only one - happens inside gw_play, gw_start has no merge to restore,
-  // and a merge carried across scenes could name the wrong mod set.
+  // The last merge this scene mounted, for a root-only run to put back.
   // See design.md.
   var mergedUnitFile;
 

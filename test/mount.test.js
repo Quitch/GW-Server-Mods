@@ -441,8 +441,7 @@ describe("mount.run", () => {
       );
     });
 
-    // spec:// keeps a path's first read, so a viewer's probe would hand the
-    // host's list to the referee of a later solo battle.
+    // The probe checks the referee's input, and only the host runs the referee.
     it("does not read the referee's spec:// list", async () => {
       const fixture = viewerScene();
 
