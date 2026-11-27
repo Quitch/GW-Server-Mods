@@ -168,12 +168,12 @@ list before it reads the root mount record. With an unwritable store the base li
 cannot be kept either, so every new page reads it again, with or without the mark.
 
 **`spec://` caches each path it reads until the engine next rebuilds its file system.**
-Measured on build 124739, on CEF and on Coherent, with a memory file at a path of its own:
-after a first `spec://` read, a new file mounted at that path showed through `coui://` but not
-through `spec://`, in the same page, after a `reloadScene`, and after a page change. Every
+Measured on build 124739 with a memory file at a path of its own: after a first `spec://`
+read, a new file mounted at that path showed through `coui://` but not through `spec://` in the
+same page (CEF and Coherent), nor after a `reloadScene` or a page change (CEF). Every
 rebuild (the one that logs `Mounting …\media\ as /` and then `Init mods`) made `spec://` read the
-path again: `api.content.remount()`, entering `start`, a Galactic War connect, and leaving a
-battle. A path that returned 404 is not cached. `coui://` has no such cache, and the base list
+path again: `api.content.remount()` (CEF and Coherent), and entering `start`, a Galactic War
+connect, and leaving a battle (CEF). A path that returned 404 is not cached (CEF). `coui://` has no such cache, and the base list
 is read through it (with a cache-busting query, which `spec://` rejects).
 
 The referee always reads after a rebuild. Stock `gw_referee.js`, and GWO's copy of it, read
@@ -184,9 +184,9 @@ callback runs (see [Keeping the mounts](#keeping-the-mounts)). Measured in `gw_p
 dropped from the set and the run repeated, `spec://` kept the earlier 687 units while
 `coui://` held 558, and the referee's own sequence (the unmount, then the read) returned 558. So
 a faction enabled or disabled during a session reaches the next battle without a restart, and
-nothing here needs to track what `spec://` holds. The same holds with Community Mods' merge
-turned off: the referee then reads the list of whichever zip shadowed the path, as it is
-mounted at the read.
+nothing here needs to track what `spec://` holds. With Community Mods' merge turned off the
+read order is the same, so the referee reads whichever zip's list is mounted at the read; that
+case was not measured in a battle.
 
 Community Mods generates a merged list of its own in `community-mods-server.zip`, but only
 when every mod's `unitList` had been populated by its asynchronous filesystem scan at the
