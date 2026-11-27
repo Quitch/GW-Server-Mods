@@ -243,6 +243,11 @@
     try {
       relevance = JSON.parse(sessionStorage.getItem(RELEVANCE_KEY) || "{}");
     } catch (e) {
+      relevance = null;
+    }
+
+    // Anything but a plain object, null and arrays included, reads as none.
+    if (!_.isPlainObject(relevance)) {
       relevance = {};
     }
 
@@ -306,13 +311,23 @@
       .then(saveRelevance);
   }
 
-  // Only these need to match between host and viewer. Empty until a mount has
-  // run, and the gate treats that as "require everything" rather than nothing.
+  // Only the mods a mount has classified as client-relevant; empty until one
+  // has run.
   function clientRelevantServerMods() {
     var known = loadRelevance();
 
     return _.filter(activeServerMods(), function (mod) {
       return known[mod.identifier] === true;
+    });
+  }
+
+  // The gate's list. Each mod is judged on its own: one no mount has
+  // classified yet is required, whatever the others' state.
+  function serverModsToMatch() {
+    var known = loadRelevance();
+
+    return _.filter(activeServerMods(), function (mod) {
+      return known[mod.identifier] !== false;
     });
   }
 
@@ -555,6 +570,7 @@
       return ns.jq(detectClientRelevance(mods));
     },
     clientRelevantServerMods: clientRelevantServerMods,
+    serverModsToMatch: serverModsToMatch,
     relevanceKnown: relevanceKnown,
     identifiers: identifiers,
     rawIdentifiers: rawIdentifiers,

@@ -181,6 +181,32 @@ describe("publishing the host's server mods", () => {
     ]);
   });
 
+  it("requires a mod the classification does not cover yet", () => {
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [
+          mod({ identifier: "com.server-only" }),
+          mod({ identifier: "com.rendered" }),
+          mod({ identifier: "com.new" }),
+        ],
+      },
+      stubs: relevance({ "com.server-only": false, "com.rendered": true }),
+    });
+
+    fixture.model.send_message(REQUIRED, {});
+
+    assert.deepEqual(fixture.send.calls[0].payload.required_identifiers, [
+      "com.rendered",
+      "com.new",
+    ]);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] server mods unclassified, requiring all"
+      ),
+      false
+    );
+  });
+
   it("leaves the payload untouched when nothing is required", () => {
     const fixture = scene();
     const payload = { required_identifiers: ["com.client"] };

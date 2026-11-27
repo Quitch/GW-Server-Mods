@@ -134,6 +134,7 @@
 
     return rootMountsSurvived(key).then(function (survived) {
       if (survived) {
+        markRootBatch();
         rootMountedAt = generation;
         rootMountedFor = key;
 
@@ -144,8 +145,35 @@
     });
   }
 
+  // Set once root zips are known to be mounted in this process. See design.md.
+  var ROOT_BATCH_KEY = "gw_server_mods_root_batch";
+  var rootBatchStarted = false;
+
+  function markRootBatch() {
+    rootBatchStarted = true;
+
+    try {
+      sessionStorage.setItem(ROOT_BATCH_KEY, "true");
+    } catch (e) {
+      ns.log("root mount mark not persisted");
+    }
+  }
+
+  function rootBatchSeen() {
+    if (rootBatchStarted) {
+      return true;
+    }
+
+    try {
+      return sessionStorage.getItem(ROOT_BATCH_KEY) === "true";
+    } catch (e) {
+      return false;
+    }
+  }
+
   function mountBatch(mods, key, generation) {
     if (key.length) {
+      markRootBatch();
       writeRootRecord("", generation);
     }
 
@@ -272,12 +300,16 @@
     return vanillaUnits;
   }
 
-  // Called before the first mount of a run, so the read still sees the base
-  // game. Resolves either way: a base list that cannot be read costs four units
-  // in one faction combination, and must never cost a battle.
+  // Resolves either way: a base list that cannot be read costs four units in
+  // one faction combination, and must never cost a battle. See design.md.
   function captureVanillaUnits() {
     if (loadVanillaUnits()) {
       return Promise.resolve(vanillaUnits);
+    }
+
+    if (rootBatchSeen()) {
+      ns.log("base unit list not read: the root mounts shadow it");
+      return Promise.resolve(undefined);
     }
 
     return readUnitList("coui://pa/units/unit_list.json").then(
@@ -325,13 +357,16 @@
   // other, so the referee would only see the last one. See design.md.
   function mergeUnitList(mods) {
     var mgr = CommunityModsManager;
-
-    if (
+    var merging = !(
       _.isFunction(mgr.mergeUnitServerMods) &&
       mgr.mergeUnitServerMods() === false
-    ) {
+    );
+    var zips = _.filter(mods, function (mod) {
+      return !mod.fileSystem;
+    });
+
+    if (!merging) {
       ns.log("unit list merge disabled by Community Mods");
-      return Promise.resolve("unmerged\n" + rootKey(mods));
     }
 
     // The referee's path is never read through spec:// here: the engine caches
@@ -341,21 +376,29 @@
     // rather than a read taken now, which the root mounts would shadow.
     // See design.md.
     var reads = [Promise.resolve(loadVanillaUnits())].concat(
-      _.map(
-        _.filter(mods, function (mod) {
-          return !mod.fileSystem;
-        }),
-        function (mod) {
-          return readUnitList(
-            "spec:/" + ns.manifest.modRoot(mod) + "pa/units/unit_list.json"
-          );
-        }
-      )
+      _.map(zips, function (mod) {
+        return readUnitList(
+          "spec:/" + ns.manifest.modRoot(mod) + "pa/units/unit_list.json"
+        );
+      })
     );
 
     return ns.settled(reads).then(function (lists) {
-      return mountMergedList(lists[0], _.filter(lists.slice(1), _.isArray));
+      var modLists = lists.slice(1);
+
+      return merging
+        ? mountMergedList(lists[0], _.filter(modLists, _.isArray))
+        : unmergedKey(zips, modLists);
     });
+  }
+
+  // See design.md.
+  function unmergedKey(zips, modLists) {
+    var shipped = _.filter(zips, function (mod, index) {
+      return _.isArray(modLists[index]);
+    });
+
+    return shipped.length ? "unmerged\n" + rootKey(shipped) : "";
   }
 
   // Resolves with the key checkPinnedUnitList compares: the merged units

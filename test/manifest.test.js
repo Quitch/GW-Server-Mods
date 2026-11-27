@@ -372,6 +372,11 @@ describe("manifest.clientRelevantServerMods", () => {
       ns.manifest.clientRelevantServerMods().map((m) => m.identifier),
       ["com.a"]
     );
+    // The gate's list keeps every mod not classified as server-only.
+    assert.deepEqual(
+      ns.manifest.serverModsToMatch().map((m) => m.identifier),
+      ["com.a", "com.c"]
+    );
   });
 
   it("treats a corrupt persisted classification as unknown", () => {
@@ -384,6 +389,42 @@ describe("manifest.clientRelevantServerMods", () => {
 
     assert.equal(ns.manifest.relevanceKnown(), false);
     assert.deepEqual(ns.manifest.clientRelevantServerMods(), []);
+  });
+
+  it("treats a persisted value that is not an object as unknown", () => {
+    for (const stored of ["null", "[]", "3", '"text"']) {
+      const { ns } = scene({
+        stubs: {
+          sessionStorage: fakeSessionStorage({ [RELEVANCE_KEY]: stored }),
+        },
+        cmmOptions: { serverMods: [mod({ identifier: "com.a" })] },
+      });
+
+      assert.equal(ns.manifest.relevanceKnown(), false, stored);
+      assert.deepEqual(
+        ns.manifest.serverModsToMatch().map((m) => m.identifier),
+        ["com.a"],
+        stored
+      );
+    }
+  });
+});
+
+describe("manifest.serverModsToMatch", () => {
+  it("keeps every mod before any classification", () => {
+    const { ns } = scene({
+      cmmOptions: {
+        serverMods: [
+          mod({ identifier: "com.a" }),
+          mod({ identifier: "com.b" }),
+        ],
+      },
+    });
+
+    assert.deepEqual(
+      ns.manifest.serverModsToMatch().map((m) => m.identifier),
+      ["com.a", "com.b"]
+    );
   });
 });
 

@@ -154,6 +154,20 @@ intent, which is why this is treated as a loss rather than a removal.
 later scene reuses it. A base list that cannot be read falls back to the union of the mod
 lists: it costs four units in one faction combination, and must never cost a battle.
 
+Only a read taken before the first root batch of the process is the base list, so a failed
+read is not retried after one. Each root batch sets `gw_server_mods_root_batch` in
+`sessionStorage` as it starts, and so does a page that finds an earlier page's zips still
+mounted through the root mount record. Once it is set, a missing base list stays missing: a
+retry would store the list of whichever faction zip mounted last, every later merge would
+carry that faction's units even after it is disabled, and the changed merge would raise a
+false `unit_list_pinned`. A reset that unmounts the zips leaves the mark in place, which costs
+only the fallback above.
+
+The same step also sets a page flag, so a page whose `sessionStorage` cannot be written still
+stops after its own batch. It does not cover the next page: there the first run reads the base
+list before it reads the root mount record. With an unwritable store the base list itself
+cannot be kept either, so every new page reads it again, with or without the mark.
+
 **`spec://` caches a path after its first read, for the life of the process.** Measured
 directly: after mounting the merged list, `coui://pa/units/unit_list.json` returned 575 units
 and `spec://pa/units/unit_list.json` still returned the 332 it had served earlier, while a
@@ -172,12 +186,18 @@ galaxy map but not the referee, and nothing a client mod can call clears the cac
 for the referee in `sessionStorage`, which lasts as long as the cache, and raises
 `unit_list_pinned`, telling the player to restart PA, when a later battle mount leaves a
 different one. The key is the merged units, sorted, so the order Community Mods lists the
-mods in does not count. With Community Mods' merge turned off, the referee reads whichever
-zip shadowed the path, which only the mounted set decides, so the key is that set. A merge
-with no faction list to add leaves the base list, keyed as an empty string. A merged list
-that could not be mounted says nothing about the set and is not checked;
-`unit_list_unmerged` already reports it. It costs one sort and one string comparison per
-battle mount, and no read.
+mods in does not count. With Community Mods' merge turned off, the referee reads the list of
+whichever zip shadowed the path, and only a zip that ships `pa/units/unit_list.json` can
+shadow it. The key is then the path and version of each zip whose
+`spec://server_mods/<id>/pa/units/unit_list.json` read returns a list, so enabling or
+updating a server mod with no unit list, such as an AI or a biome mod, leaves it alone. A new
+version of a zip that ships a list changes it even when the list is the same: `spec://` keeps
+that path's first read too, so the old and new lists cannot be compared. With no zip shipping
+a list, the key is the empty string, the same as a merge with no faction list to add, which
+leaves the base list. A merged list that could not be mounted says nothing about the set and
+is not checked; `unit_list_unmerged` already reports it. With the merge on it costs one sort
+and one string comparison per battle mount; with it off, one read of each zip's list as
+well.
 
 A battle with no server mods never reaches the merge, yet the referee still pins the base
 list. The patched `model.fight` marks its run with `battle: true`, and a marked run with no
@@ -728,8 +748,10 @@ in one scene and the gate that reads it runs in another, and each scene is a sep
 with its own copy of this module. Held in memory alone, the gate never sees a
 classification and silently falls back to requiring everything.
 
-Until a classification exists the gate does require every active server mod, rather than
-none.
+The gate judges each mod on its own: an active server mod that no mount has classified
+yet is required, rather than dropped, whether or not the others have been classified. The
+classification only grows during a process, so a mod enabled after the last mount that ran
+has no entry until the next one.
 
 |                                 | Host publishes | Viewer reports                           |
 | ------------------------------- | -------------- | ---------------------------------------- |
@@ -761,6 +783,18 @@ The gate normalises identifiers to lower case on both sides, so that comparison 
 `model.gameModIdentifiers` goes back to the game instead - reconnect info and the beacon -
 where a mod installed as `qQuellerAI-dev` must not become `qquellerai-dev`. `manifest.js`
 carries both forms for that reason.
+
+`connect_to_game/start.js` adds them once `startGame` resolves. Every stock read of
+`model.gameModIdentifiers` that matters comes after the connect, which starts in the handler
+that stock attaches to `startGame`'s result (`connect_to_game.js:709`), so it waits for this
+step: `login_accepted` writes the reconnect record from it. The wrapper's own mount runs before Community Mods has read its installed-mods store
+(see [Server mod scene scripts](#server-mod-scene-scripts)), so the identifier step first
+waits for that store, `CommunityModsManager.installedMods.ready`, capped at 15 s. A list read
+before the store would be empty, nothing would be added, and `identifiers_lost` would have
+nothing to compare. The wait comes after the start, never before it, so the server is not held
+up. In two solo launches on build 124739 (CEF), 2026-11-27, the store settled 0.11 s and
+0.15 s after the start call and the server took 11.3 s and 21.6 s to listen, so the wait cost
+nothing; on the second launch stock's handlers ran 4 ms after the start resolved.
 
 ## Alarms
 
