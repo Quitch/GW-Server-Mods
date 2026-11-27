@@ -166,8 +166,9 @@
   }
 
   // A faction splits its art: models in the server mod, textures in the client
-  // mod it names in `companions`. See design.md.
-  function pairedClientMods() {
+  // mod it names in `companions`. `mods`, when given, limits the pairing to
+  // those server mods. See design.md.
+  function pairedClientMods(mods) {
     var records;
     var clientRecords;
 
@@ -182,6 +183,16 @@
       clientRecords = fallbackClientMods();
     } else {
       return [];
+    }
+
+    if (_.isArray(mods)) {
+      var kept = _.map(mods, function (mod) {
+        return normalizeIdentifier(mod && mod.identifier);
+      });
+
+      records = _.filter(records, function (mod) {
+        return _.includes(kept, normalizeIdentifier(mod && mod.identifier));
+      });
     }
 
     var wanted = [];
@@ -232,6 +243,11 @@
     try {
       relevance = JSON.parse(sessionStorage.getItem(RELEVANCE_KEY) || "{}");
     } catch (e) {
+      relevance = null;
+    }
+
+    // Anything but a plain object, null and arrays included, reads as none.
+    if (!_.isPlainObject(relevance)) {
       relevance = {};
     }
 
@@ -295,13 +311,23 @@
       .then(saveRelevance);
   }
 
-  // Only these need to match between host and viewer. Empty until a mount has
-  // run, and the gate treats that as "require everything" rather than nothing.
+  // Only the mods a mount has classified as client-relevant; empty until one
+  // has run.
   function clientRelevantServerMods() {
     var known = loadRelevance();
 
     return _.filter(activeServerMods(), function (mod) {
       return known[mod.identifier] === true;
+    });
+  }
+
+  // The gate's list. Each mod is judged on its own: one no mount has
+  // classified yet is required, whatever the others' state.
+  function serverModsToMatch() {
+    var known = loadRelevance();
+
+    return _.filter(activeServerMods(), function (mod) {
+      return known[mod.identifier] !== false;
     });
   }
 
@@ -386,6 +412,24 @@
 
   function viewerHostMods() {
     return viewing() ? hostMods() : null;
+  }
+
+  // See design.md.
+  function serverModsToMount() {
+    return sharedScenesMods(activeServerMods(), viewerHostMods());
+  }
+
+  function viewingHost() {
+    return viewerHostMods() !== null;
+  }
+
+  // See design.md.
+  function forgetHost() {
+    try {
+      localStorage.removeItem(HOST_MODS_KEY);
+    } catch (e) {
+      ns.log("host server mods not cleared", { error: String(e) });
+    }
   }
 
   function writeScenes(mods, identifiers) {
@@ -508,6 +552,9 @@
     listed: listed,
     storeRead: storeRead,
     activeServerMods: activeServerMods,
+    serverModsToMount: serverModsToMount,
+    viewingHost: viewingHost,
+    forgetHost: forgetHost,
     serverModInfo: serverModInfo,
     scenes: scenes,
     scenesStored: scenesStored,
@@ -523,6 +570,7 @@
       return ns.jq(detectClientRelevance(mods));
     },
     clientRelevantServerMods: clientRelevantServerMods,
+    serverModsToMatch: serverModsToMatch,
     relevanceKnown: relevanceKnown,
     identifiers: identifiers,
     rawIdentifiers: rawIdentifiers,

@@ -134,6 +134,7 @@
 
     return rootMountsSurvived(key).then(function (survived) {
       if (survived) {
+        markRootBatch();
         rootMountedAt = generation;
         rootMountedFor = key;
 
@@ -144,8 +145,35 @@
     });
   }
 
+  // Set once root zips are known to be mounted in this process. See design.md.
+  var ROOT_BATCH_KEY = "gw_server_mods_root_batch";
+  var rootBatchStarted = false;
+
+  function markRootBatch() {
+    rootBatchStarted = true;
+
+    try {
+      sessionStorage.setItem(ROOT_BATCH_KEY, "true");
+    } catch (e) {
+      ns.log("root mount mark not persisted");
+    }
+  }
+
+  function rootBatchSeen() {
+    if (rootBatchStarted) {
+      return true;
+    }
+
+    try {
+      return sessionStorage.getItem(ROOT_BATCH_KEY) === "true";
+    } catch (e) {
+      return false;
+    }
+  }
+
   function mountBatch(mods, key, generation) {
     if (key.length) {
+      markRootBatch();
       writeRootRecord("", generation);
     }
 
@@ -178,9 +206,8 @@
       return Promise.resolve(generation);
     }
 
-    var mods = ns.manifest
-      .activeServerMods()
-      .concat(ns.manifest.pairedClientMods());
+    var active = ns.manifest.serverModsToMount();
+    var mods = active.concat(ns.manifest.pairedClientMods(active));
 
     if (!mods.length) {
       return Promise.resolve(generation);
@@ -200,10 +227,8 @@
     contentRegisteredAt = generation;
   }
 
-  // spec:// rejects a query string, so cache-busting it returns 404.
-  // Mounting alone leaves models and textures unregistered with the renderer.
   // Skipped when the catalogue was already rebuilt over this generation's root
-  // mounts, by this mod or by Community Mods through the hooks.
+  // mounts, by this mod or by Community Mods through the hooks. See design.md.
   function remountContent(generation) {
     if (contentRegisteredAt === generation) {
       return Promise.resolve(false);
@@ -222,6 +247,7 @@
   }
 
   function readUnitList(url) {
+    // spec:// rejects a query string, so cache-busting it returns 404.
     return Promise.resolve(
       $.ajax({
         url: url,
@@ -273,12 +299,16 @@
     return vanillaUnits;
   }
 
-  // Called before the first mount of a run, so the read still sees the base
-  // game. Resolves either way: a base list that cannot be read costs four units
-  // in one faction combination, and must never cost a battle.
+  // Resolves either way: a base list that cannot be read costs four units in
+  // one faction combination, and must never cost a battle. See design.md.
   function captureVanillaUnits() {
     if (loadVanillaUnits()) {
       return Promise.resolve(vanillaUnits);
+    }
+
+    if (rootBatchSeen()) {
+      ns.log("base unit list not read: the root mounts shadow it");
+      return Promise.resolve(undefined);
     }
 
     return readUnitList("coui://pa/units/unit_list.json").then(
@@ -326,13 +356,16 @@
   // other, so the referee would only see the last one. See design.md.
   function mergeUnitList(mods) {
     var mgr = CommunityModsManager;
-
-    if (
+    var merging = !(
       _.isFunction(mgr.mergeUnitServerMods) &&
       mgr.mergeUnitServerMods() === false
-    ) {
+    );
+    var zips = _.filter(mods, function (mod) {
+      return !mod.fileSystem;
+    });
+
+    if (!merging) {
       ns.log("unit list merge disabled by Community Mods");
-      return Promise.resolve("unmerged\n" + rootKey(mods));
     }
 
     // The referee's path is never read through spec:// here: the engine caches
@@ -342,21 +375,29 @@
     // rather than a read taken now, which the root mounts would shadow.
     // See design.md.
     var reads = [Promise.resolve(loadVanillaUnits())].concat(
-      _.map(
-        _.filter(mods, function (mod) {
-          return !mod.fileSystem;
-        }),
-        function (mod) {
-          return readUnitList(
-            "spec:/" + ns.manifest.modRoot(mod) + "pa/units/unit_list.json"
-          );
-        }
-      )
+      _.map(zips, function (mod) {
+        return readUnitList(
+          "spec:/" + ns.manifest.modRoot(mod) + "pa/units/unit_list.json"
+        );
+      })
     );
 
     return ns.settled(reads).then(function (lists) {
-      return mountMergedList(lists[0], _.filter(lists.slice(1), _.isArray));
+      var modLists = lists.slice(1);
+
+      return merging
+        ? mountMergedList(lists[0], _.filter(modLists, _.isArray))
+        : unmergedKey(zips, modLists);
     });
+  }
+
+  // See design.md.
+  function unmergedKey(zips, modLists) {
+    var shipped = _.filter(zips, function (mod, index) {
+      return _.isArray(modLists[index]);
+    });
+
+    return shipped.length ? "unmerged\n" + rootKey(shipped) : "";
   }
 
   // Resolves with the key checkPinnedUnitList compares: the merged units
@@ -407,14 +448,14 @@
   // verify() is the first read of the referee's spec:// list, and spec:// keeps
   // that read for the whole process, so a later battle with another merge
   // still gets the first one. sessionStorage lives as long. A key that is not
-  // a string is a merge that failed, which says nothing about the set.
-  // See design.md.
+  // a string is a merge that failed, which says nothing about the set. A
+  // co-op viewer skips it. See design.md.
   var PINNED_KEY = "gw_server_mods_pinned_unit_list";
 
   function checkPinnedUnitList(current) {
     var pinned;
 
-    if (!_.isString(current)) {
+    if (!_.isString(current) || ns.manifest.viewingHost()) {
       return;
     }
 
@@ -501,10 +542,13 @@
   // A folder-installed server mod the client has to render cannot be made
   // visible to it. An AI-only one is unaffected, so this waits for the
   // classification rather than warning about every folder mod.
-  function reportUnmountableMods() {
+  function reportUnmountableMods(mods) {
+    var mounting = _.map(mods, "identifier");
     var stranded = _.filter(
       ns.manifest.clientRelevantServerMods(),
-      "fileSystem"
+      function (mod) {
+        return mod.fileSystem && _.includes(mounting, mod.identifier);
+      }
     );
 
     _.forEach(stranded, function (mod) {
@@ -522,17 +566,22 @@
       checks.push(probe("coui:/" + ns.manifest.modRoot(mod) + "modinfo.json"));
     });
 
-    // The referee's own input.
-    checks.push(probe("spec://pa/units/unit_list.json"));
+    // The referee's own input, so a viewer skips it. See design.md.
+    var referee = !ns.manifest.viewingHost();
+
+    if (referee) {
+      checks.push(probe("spec://pa/units/unit_list.json"));
+    }
 
     return ns.settled(checks).then(function (results) {
       var ok = !_.includes(results, false);
+      var modCount = mods.length;
 
       if (!ok) {
         ns.alarm("probe_failed", {
           manifest: results[0],
-          mods: results.slice(1, results.length - 1),
-          unitList: results[results.length - 1],
+          mods: results.slice(1, 1 + modCount),
+          unitList: referee ? results[1 + modCount] : null,
         });
       }
 
@@ -592,7 +641,7 @@
     return timed(
       timing,
       "root",
-      mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+      mountRoots(mods.concat(ns.manifest.pairedClientMods(mods)), generation)
     )
       .then(function (result) {
         roots = result;
@@ -619,7 +668,7 @@
     return timed(
       timing,
       "root",
-      mountRoots(mods.concat(ns.manifest.pairedClientMods()), generation)
+      mountRoots(mods.concat(ns.manifest.pairedClientMods(mods)), generation)
     )
       .then(function () {
         return timed(
@@ -642,7 +691,7 @@
         ]);
       })
       .then(function () {
-        reportUnmountableMods();
+        reportUnmountableMods(mods);
         checkPinnedUnitList(mergeKey);
 
         return timed(timing, "verify", verify(mods));
@@ -795,7 +844,7 @@
     }
 
     var mounting = Promise.resolve(ns.manifest.load()).then(function () {
-      mods = ns.manifest.activeServerMods();
+      mods = ns.manifest.serverModsToMount();
 
       ns.manifest.rememberScenes(mods);
 
@@ -828,10 +877,9 @@
 
   // A single unmount reaches here through two wrappers, and a full cycle costs
   // seconds, so concurrent callers share one run. A caller that needs the
-  // content remount is the exception: a run that skipped it leaves the models
-  // unregistered, so sharing one would start the battle with every unit
-  // invisible. That caller waits for the run in flight and then gets its own -
-  // queued rather than started, since two runs must not overlap their mounts.
+  // content remount is the exception (see design.md): it waits for the run in
+  // flight and then gets its own - queued rather than started, since two runs
+  // must not overlap their mounts.
   // A root-only run in flight is the other exception for a battle caller: it
   // merged nothing and made no /server_mods/<id>/ mounts, so only another
   // root-only caller may share it. So may no caller a run that read a

@@ -1,4 +1,4 @@
-// The atlas is built once at startup and never rebuilt. See design.md.
+// See design.md.
 (function () {
   var ICON_DIR = "/ui/main/atlas/icon_atlas/img/strategic_icons/";
   var MARK = "__gwServerModsPatched";

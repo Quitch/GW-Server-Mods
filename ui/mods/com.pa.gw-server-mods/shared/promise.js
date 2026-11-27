@@ -20,9 +20,7 @@
     );
   };
 
-  // Stock PA calls .always() on what three of this mod's wrappers return, and
-  // jQuery 2.1.4 recognises a promise by a `promise` method, which neither an
-  // engine promise nor a native one has. Only those three seams need this.
+  // See design.md.
   ns.jq = function (promise) {
     var deferred = $.Deferred();
 

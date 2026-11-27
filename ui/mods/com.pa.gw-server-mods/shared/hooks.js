@@ -181,7 +181,7 @@
   }
 
   // True only when every seam is taken, so a caller may rely on a teardown
-  // registering the content itself.
+  // rebuilding the content over the root zips itself.
   function installed() {
     return seams.unmount && seams.remount && seams.content;
   }
