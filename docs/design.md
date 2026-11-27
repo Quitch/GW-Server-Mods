@@ -750,6 +750,18 @@ The gate normalises identifiers to lower case on both sides, so that comparison 
 where a mod installed as `qQuellerAI-dev` must not become `qquellerai-dev`. `manifest.js`
 carries both forms for that reason.
 
+`connect_to_game/start.js` adds them once `startGame` resolves. Every stock read of
+`model.gameModIdentifiers` that matters comes after the connect, which starts in the handler
+that stock attaches to `startGame`'s result (`connect_to_game.js:709`), so it waits for this
+step: `login_accepted` writes the reconnect record from it. The wrapper's own mount runs before Community Mods has read its installed-mods store
+(see [Server mod scene scripts](#server-mod-scene-scripts)), so the identifier step first
+waits for that store, `CommunityModsManager.installedMods.ready`, capped at 15 s. A list read
+before the store would be empty, nothing would be added, and `identifiers_lost` would have
+nothing to compare. The wait comes after the start, never before it, so the server is not held
+up. In two solo launches on build 124739 (CEF), 2026-11-27, the store settled 0.11 s and
+0.15 s after the start call and the server took 11.3 s and 21.6 s to listen, so the wait cost
+nothing; on the second launch stock's handlers ran 4 ms after the start resolved.
+
 ## Alarms
 
 Failures here otherwise surface much later as a missing unit or a battle that will not

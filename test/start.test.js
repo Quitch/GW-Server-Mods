@@ -8,7 +8,11 @@ const assert = require("node:assert/strict");
 
 const { sharedScene } = require("../scripts/lib/shared-scene.js");
 const { mod } = require("../scripts/lib/fake-cmm.js");
-const { enginePromise, rejected } = require("../scripts/lib/fake-jquery.js");
+const {
+  Deferred,
+  enginePromise,
+  rejected,
+} = require("../scripts/lib/fake-jquery.js");
 const {
   fakeSessionStorage,
   flush,
@@ -484,6 +488,91 @@ describe("the patched startGame", () => {
 });
 
 describe("declaring the identifiers", () => {
+  // The store loads after the scene's own start call, so the list the start
+  // saw is empty. The server must not wait for it; the declaration must.
+  it("waits for Community Mods' store after starting the server", async () => {
+    const ready = Deferred();
+    const listed = [];
+    const fixture = scene({
+      cmmOptions: { serverMods: listed, installedReady: ready },
+    });
+
+    const outcome = await start(fixture, "gw");
+
+    assert.equal(fixture.api.calls.startGame.length, 1);
+    assert.equal(outcome.always, 0);
+    assert.deepEqual(fixture.model.gameModIdentifiers(), ["com.client"]);
+
+    listed.push(mod({ identifier: "Com.Server" }));
+    ready.resolve();
+    await flush();
+
+    assert.equal(outcome.always, 1);
+    assert.deepEqual(fixture.model.gameModIdentifiers(), [
+      "com.client",
+      "Com.Server",
+    ]);
+  });
+
+  it("declares the server mods after a store that failed to load", async () => {
+    const ready = Deferred();
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod({ identifier: "Com.Server" })],
+        installedReady: ready,
+      },
+    });
+
+    const outcome = await start(fixture, "gw");
+    ready.reject("no record");
+    await flush();
+
+    assert.equal(outcome.value, "started");
+    assert.deepEqual(fixture.model.gameModIdentifiers(), [
+      "com.client",
+      "Com.Server",
+    ]);
+  });
+
+  it("stops waiting for a store that never loads", async () => {
+    const timers = [];
+    const fixture = scene({
+      cmmOptions: {
+        serverMods: [mod({ identifier: "Com.Server" })],
+        installedReady: Deferred(),
+      },
+      stubs: {
+        setTimeout: (fn, ms) => {
+          timers.push({ fn, ms });
+          return timers.length;
+        },
+        clearTimeout: () => {},
+      },
+    });
+
+    const outcome = await start(fixture, "gw");
+
+    assert.deepEqual(
+      timers.map((timer) => timer.ms),
+      [15000]
+    );
+    assert.equal(outcome.always, 0);
+    timers[0].fn();
+    await flush();
+
+    assert.equal(outcome.always, 1);
+    assert.deepEqual(fixture.model.gameModIdentifiers(), [
+      "com.client",
+      "Com.Server",
+    ]);
+    assert.equal(
+      fixture.console.lines.log.includes(
+        "[GW-SM] Community Mods store not read after 15 s; declaring what is listed, if anything"
+      ),
+      true
+    );
+  });
+
   it("does nothing without the list or without server mods", async () => {
     const noList = scene({ model: {} });
     assert.equal((await start(noList, "gw")).value, "started");
