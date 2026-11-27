@@ -166,7 +166,21 @@ describe("the translation registration", () => {
     const calls = [];
     page({ register: (...args) => calls.push(args) });
 
-    assert.deepEqual(calls, [["com.pa.gw-server-mods"]]);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], "com.pa.gw-server-mods");
+  });
+
+  it("lists exactly the language files the mod ships", () => {
+    const calls = [];
+    page({ register: (...args) => calls.push(args) });
+
+    const shipped = fs
+      .readdirSync(DIR)
+      .filter((file) => file.endsWith(".json") && file !== CATALOG)
+      .map((file) => file.replace(/\.json$/, ""))
+      .sort();
+
+    assert.deepEqual([...calls[0][1].languages].sort(), shipped);
   });
 
   it("does nothing without Mod Translations or its register", () => {
