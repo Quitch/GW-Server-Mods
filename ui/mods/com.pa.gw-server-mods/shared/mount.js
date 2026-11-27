@@ -326,13 +326,16 @@
   // other, so the referee would only see the last one. See design.md.
   function mergeUnitList(mods) {
     var mgr = CommunityModsManager;
-
-    if (
+    var merging = !(
       _.isFunction(mgr.mergeUnitServerMods) &&
       mgr.mergeUnitServerMods() === false
-    ) {
+    );
+    var zips = _.filter(mods, function (mod) {
+      return !mod.fileSystem;
+    });
+
+    if (!merging) {
       ns.log("unit list merge disabled by Community Mods");
-      return Promise.resolve("unmerged\n" + rootKey(mods));
     }
 
     // The referee's path is never read through spec:// here: the engine caches
@@ -342,21 +345,37 @@
     // rather than a read taken now, which the root mounts would shadow.
     // See design.md.
     var reads = [Promise.resolve(loadVanillaUnits())].concat(
-      _.map(
-        _.filter(mods, function (mod) {
-          return !mod.fileSystem;
-        }),
-        function (mod) {
-          return readUnitList(
-            "spec:/" + ns.manifest.modRoot(mod) + "pa/units/unit_list.json"
-          );
-        }
-      )
+      _.map(zips, function (mod) {
+        return readUnitList(
+          "spec:/" + ns.manifest.modRoot(mod) + "pa/units/unit_list.json"
+        );
+      })
     );
 
     return ns.settled(reads).then(function (lists) {
-      return mountMergedList(lists[0], _.filter(lists.slice(1), _.isArray));
+      var modLists = lists.slice(1);
+
+      return merging
+        ? mountMergedList(lists[0], _.filter(modLists, _.isArray))
+        : unmergedKey(zips, modLists);
     });
+  }
+
+  // With the merge off the referee reads one of the lists the zips ship, so
+  // the key is each of those lists by mod, or "" - the base list's key - when
+  // no zip ships one. See design.md.
+  function unmergedKey(zips, modLists) {
+    var shipped = [];
+
+    _.forEach(zips, function (mod, index) {
+      if (_.isArray(modLists[index])) {
+        shipped.push(
+          mod.identifier + "\n" + modLists[index].slice().sort().join("\n")
+        );
+      }
+    });
+
+    return shipped.length ? "unmerged\n" + shipped.sort().join("\n\n") : "";
   }
 
   // Resolves with the key checkPinnedUnitList compares: the merged units

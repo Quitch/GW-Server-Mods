@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## Unreleased
+
+- Fixed Galactic War telling you to restart PA after a server mod change that leaves the unit list alone, when Community Mods' unit list merge is off
+
 ## v1.6.1 - 2026-10-28
 
 - Fixed co-op Galactic War battles still loading, for a joining player, the build bar and player list scripts of server mods that only that player has enabled
