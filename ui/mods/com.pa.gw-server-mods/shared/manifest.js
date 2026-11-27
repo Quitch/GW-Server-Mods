@@ -408,7 +408,7 @@
     return viewerHostMods() !== null;
   }
 
-  // Stock resets the role only when gw_play loads. See design.md.
+  // See design.md.
   function forgetHost() {
     try {
       localStorage.removeItem(HOST_MODS_KEY);

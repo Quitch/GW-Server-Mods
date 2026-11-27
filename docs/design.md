@@ -657,8 +657,9 @@ so a viewer that mounted one the host does not run would read and draw content t
 does not use: a balance mod's unit specs in its UI, a replaced model or effect in its view.
 `manifest.serverModsToMount()` applies the same filter as the scene list, and a run and the
 content accessor's root batch mount only what it returns, with only those mods' companions.
-Stock resets `gw_campaign_role` only when `gw_play` loads without `gw_campaign`, so after a
-viewer exits to the main menu the role still reads `viewer` in `gw_start`. A war being
+Stock resets `gw_campaign_role` to `solo` when a viewer leaves the session, is disconnected,
+or loads `gw_play` without `gw_campaign`, but not on `exitGame` (`gw_play.js:280`). After a
+viewer exits to the main menu that way, the role still reads `viewer` in `gw_start`. A war being
 created is never viewed, so `gw_start/mount.js` forgets the stored host list before it
 mounts.
 
