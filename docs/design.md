@@ -186,12 +186,18 @@ galaxy map but not the referee, and nothing a client mod can call clears the cac
 for the referee in `sessionStorage`, which lasts as long as the cache, and raises
 `unit_list_pinned`, telling the player to restart PA, when a later battle mount leaves a
 different one. The key is the merged units, sorted, so the order Community Mods lists the
-mods in does not count. With Community Mods' merge turned off, the referee reads whichever
-zip shadowed the path, which only the mounted set decides, so the key is that set. A merge
-with no faction list to add leaves the base list, keyed as an empty string. A merged list
-that could not be mounted says nothing about the set and is not checked;
-`unit_list_unmerged` already reports it. It costs one sort and one string comparison per
-battle mount, and no read.
+mods in does not count. With Community Mods' merge turned off, the referee reads the list of
+whichever zip shadowed the path, and only a zip that ships `pa/units/unit_list.json` can
+shadow it. The key is then the path and version of each zip whose
+`spec://server_mods/<id>/pa/units/unit_list.json` read returns a list, so enabling or
+updating a server mod with no unit list, such as an AI or a biome mod, leaves it alone. A new
+version of a zip that ships a list changes it even when the list is the same: `spec://` keeps
+that path's first read too, so the old and new lists cannot be compared. With no zip shipping
+a list, the key is the empty string, the same as a merge with no faction list to add, which
+leaves the base list. A merged list that could not be mounted says nothing about the set and
+is not checked; `unit_list_unmerged` already reports it. With the merge on it costs one sort
+and one string comparison per battle mount; with it off, one read of each zip's list as
+well.
 
 A battle with no server mods never reaches the merge, yet the referee still pins the base
 list. The patched `model.fight` marks its run with `battle: true`, and a marked run with no

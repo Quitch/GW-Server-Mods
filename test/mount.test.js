@@ -737,14 +737,15 @@ describe("the merged unit list", () => {
     await run(fixture);
 
     // The base list is still captured - that read belongs to the mount, not the
-    // merge - but no mod list is read and nothing is written.
+    // merge - and each mod's list is read for the pinned key, but nothing is
+    // written.
     assert.equal(
       fixture.$.ajaxCalls.filter((call) => call.url === ROOT_LIST).length,
       1
     );
     assert.equal(
       fixture.$.ajaxCalls.some((call) => call.url === MOD_LIST),
-      false
+      true
     );
     assert.equal(unitListMounts(fixture).length, 0);
     assert.equal(
@@ -2100,27 +2101,103 @@ describe("the pinned unit list", () => {
     assert.deepEqual(fixture.codes(), []);
   });
 
-  // With the merge off, the referee reads whichever zip shadowed the path,
-  // which only the set decides.
-  it("keys an unmerged list on the mounted set", async () => {
-    const off = { serverMods: [mod()], mergeUnitServerMods: false };
-    const first = pinned(undefined, { cmmOptions: off });
+  // With the merge off, the referee reads one of the lists the zips ship, so
+  // only those lists key it.
+  describe("with the merge off", () => {
+    const AI_LIST = "spec://server_mods/com.ai/pa/units/unit_list.json";
+    const OTHER_LIST = "spec://server_mods/com.other/pa/units/unit_list.json";
 
-    await run(first);
-    const key = first.storage.store[PINNED];
-    assert.match(key, /^unmerged\n/);
+    function off(serverMods, lists) {
+      const byUrl = Object.assign(
+        {
+          [ROOT_LIST]: JSON.stringify({ units: ["/pa/units/a.json"] }),
+          [MOD_LIST]: JSON.stringify({ units: ["/pa/units/b.json"] }),
+          "spec://pa/units/unit_list.json": "",
+        },
+        lists
+      );
+      return {
+        cmmOptions: { serverMods: serverMods, mergeUnitServerMods: false },
+        ajax: (url) => {
+          if (url in byUrl) {
+            return byUrl[url];
+          }
+          if (url.endsWith("unit_list.json")) {
+            throw new Error("404");
+          }
+          return "";
+        },
+      };
+    }
 
-    const same = pinned(key, { cmmOptions: off });
-    await run(same);
-    assert.deepEqual(same.codes(), []);
+    async function keyFor(stored, options) {
+      const fixture = pinned(stored, options);
+      await run(fixture);
+      return fixture;
+    }
 
-    const other = pinned(key, {
-      cmmOptions: Object.assign({}, off, {
-        serverMods: [mod({ identifier: "com.other", version: "2" })],
-      }),
+    it("keys on the zips that ship a list", async () => {
+      const first = await keyFor(undefined, off([mod()]));
+      const key = first.storage.store[PINNED];
+
+      assert.equal(key, "unmerged\n/download/com.example.server.zip@1.0.0");
+      assert.deepEqual(first.codes(), []);
+
+      const other = await keyFor(
+        key,
+        off([mod({ identifier: "com.other", installedPath: "/other.zip" })], {
+          [OTHER_LIST]: JSON.stringify({ units: ["/pa/units/c.json"] }),
+        })
+      );
+      assert.equal(other.alarm("unit_list_pinned").length, 1);
     });
-    await run(other);
-    assert.equal(other.alarm("unit_list_pinned").length, 1);
+
+    it("ignores a zip that ships no unit list", async () => {
+      const first = await keyFor(undefined, off([mod()]));
+      const key = first.storage.store[PINNED];
+
+      const withAi = await keyFor(
+        key,
+        off([mod(), mod({ identifier: "com.ai", installedPath: "/ai.zip" })])
+      );
+
+      assert.equal(
+        withAi.$.ajaxCalls.some((call) => call.url === AI_LIST),
+        true
+      );
+      assert.deepEqual(withAi.codes(), []);
+    });
+
+    // spec:// keeps a path's first read, so a new version's list cannot be
+    // compared with the old one; any new version of a list-shipping zip counts.
+    it("alarms on a new version of a zip that ships a list", async () => {
+      const first = await keyFor(undefined, off([mod()]));
+      const key = first.storage.store[PINNED];
+
+      const updated = await keyFor(key, off([mod({ version: "2.0.0" })]));
+
+      assert.equal(updated.alarm("unit_list_pinned").length, 1);
+    });
+
+    it("ignores a new version of a zip that ships no list", async () => {
+      const ai = (version) =>
+        mod({ identifier: "com.ai", installedPath: "/ai.zip", version });
+      const first = await keyFor(undefined, off([mod(), ai("1")]));
+      const key = first.storage.store[PINNED];
+
+      const updated = await keyFor(key, off([mod(), ai("2")]));
+
+      assert.deepEqual(updated.codes(), []);
+    });
+
+    it("keys as the base list when no zip ships one", async () => {
+      const fixture = await keyFor(
+        undefined,
+        off([mod({ identifier: "com.ai" })])
+      );
+
+      assert.equal(fixture.storage.store[PINNED], "");
+    });
   });
 
   // A refused merge says nothing about the set, and unit_list_unmerged
