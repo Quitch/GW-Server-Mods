@@ -235,7 +235,7 @@
       relevance = null;
     }
 
-    // Anything but an object, null included, reads as no classification.
+    // Anything but a plain object, null and arrays included, reads as none.
     if (!_.isPlainObject(relevance)) {
       relevance = {};
     }
