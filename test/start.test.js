@@ -567,7 +567,7 @@ describe("declaring the identifiers", () => {
     ]);
     assert.equal(
       fixture.console.lines.log.includes(
-        "[GW-SM] Community Mods store not read; declaring the listed server mods"
+        "[GW-SM] Community Mods store not read after 15 s; declaring what is listed, if anything"
       ),
       true
     );

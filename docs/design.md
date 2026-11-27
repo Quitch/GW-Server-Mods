@@ -734,9 +734,10 @@ The gate normalises identifiers to lower case on both sides, so that comparison 
 where a mod installed as `qQuellerAI-dev` must not become `qquellerai-dev`. `manifest.js`
 carries both forms for that reason.
 
-`connect_to_game/start.js` adds them once `startGame` resolves. Stock reads
-`model.gameModIdentifiers` only later, in `login_accepted`, where it writes the reconnect
-record. The wrapper's own mount runs before Community Mods has read its installed-mods store
+`connect_to_game/start.js` adds them once `startGame` resolves. Every stock read of
+`model.gameModIdentifiers` that matters comes after the connect, which starts in the handler
+that stock attaches to `startGame`'s result (`connect_to_game.js:709`), so it waits for this
+step: `login_accepted` writes the reconnect record from it. The wrapper's own mount runs before Community Mods has read its installed-mods store
 (see [Server mod scene scripts](#server-mod-scene-scripts)), so the identifier step first
 waits for that store, `CommunityModsManager.installedMods.ready`, capped at 15 s. A list read
 before the store would be empty, nothing would be added, and `identifiers_lost` would have

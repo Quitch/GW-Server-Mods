@@ -116,10 +116,7 @@
     }
   }
 
-  // Until Community Mods has read its installed-mods store no server mod is
-  // listed, so the identifiers wait for it, after the start so the server is
-  // not held up. The cap keeps a store that never loads from holding the
-  // connect. See design.md.
+  // See design.md.
   var STORE_WAIT_MS = 15000;
 
   function installedModsRead() {
@@ -132,7 +129,7 @@
     return new Promise(function (resolve) {
       var timer = setTimeout(function () {
         ns.log(
-          "Community Mods store not read; declaring the listed server mods"
+          "Community Mods store not read after 15 s; declaring what is listed, if anything"
         );
         resolve();
       }, STORE_WAIT_MS);
