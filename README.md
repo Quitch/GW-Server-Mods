@@ -52,14 +52,12 @@ See [docs/design.md](docs/design.md).
 ### For faction mod authors
 
 Ship your strategic icons (`icon_si_*.png`) in your **client** mod, at
-`ui/main/atlas/icon_atlas/img/strategic_icons/`. The game builds its icon atlas at startup,
-before any server mod is mounted, so icons that exist only in a server mod never reach
-Galactic War and your units show a plain dot. See "Strategic icons" in
-[docs/design.md](docs/design.md).
-
-This is one case of a wider rule: content that only the client uses (icons, images,
-animations) belongs in the client mod. Players download the client mod once, while the
-server mod is uploaded and downloaded again every session.
+`ui/main/atlas/icon_atlas/img/strategic_icons/`. This is one case of a wider rule: content
+that only the client uses (icons, images, animations) belongs in the client mod. Players
+download the client mod once, while the server mod is uploaded and downloaded again every
+session. The game rebuilds its icon atlas whenever the mounted files change, so an icon left
+in your server mod still shows in Galactic War once this mod mounts it, but it costs that
+download every session. See "Strategic icons" in [docs/design.md](docs/design.md).
 
 ## Credits
 
