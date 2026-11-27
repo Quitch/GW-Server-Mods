@@ -54,6 +54,8 @@ it, stock callers and other mods alike:
 | `api.file.unmountAllMemoryFiles`         | `gw_play/gw_referee.js:24`, `:202`, `replay_loading.js:158`, Community Mods `states/replay_loading.js:80`                                                                   |
 | `CommunityModsManager.remountClientMods` | `gw_play.js:202`, `:218`, Community Mods `transit.js:107`, `:130`, `start.js:332`, `gw_referee.js:20`                                                                       |
 | `api.net.startGame`                      | `connect_to_game.js:709`                                                                                                                                                    |
+| `api.content.remount`                    | Community Mods `community-mods-manager.js:3045`, inside `mountClientMods`                                                                                                   |
+| `model.fight`                            | GW-AI-Overhaul's own `model.fight` wrapper in `gw_play/launch_progress.js`, which passes it to `progress.settle`                                                            |
 | `ns.mount.run`                           | GW-AI-Overhaul `mountRoot` in `shared/race_mods.js`, through `$.when`                                                                                                       |
 | `ns.manifest.load`                       | GW-AI-Overhaul `installedRaces` in `shared/race_mods.js`, and `enabledServerZipMods`, `serve`, and `installedBiomeMods` in `shared/gwo_biome_mods.js`, all through `$.when` |
 | `ns.manifest.detectClientRelevance`      | nothing outside this mod today; it is on the public namespace and returns a promise                                                                                         |
@@ -154,6 +156,20 @@ intent, which is why this is treated as a loss rather than a removal.
 later scene reuses it. A base list that cannot be read falls back to the union of the mod
 lists: it costs four units in one faction combination, and must never cost a battle.
 
+Only a read taken before the first root batch of the process is the base list, so a failed
+read is not retried after one. Each root batch sets `gw_server_mods_root_batch` in
+`sessionStorage` as it starts, and so does a page that finds an earlier page's zips still
+mounted through the root mount record. Once it is set, a missing base list stays missing: a
+retry would store the list of whichever faction zip mounted last, every later merge would
+carry that faction's units even after it is disabled, and the changed merge would raise a
+false `unit_list_pinned`. A reset that unmounts the zips leaves the mark in place, which costs
+only the fallback above.
+
+The same step also sets a page flag, so a page whose `sessionStorage` cannot be written still
+stops after its own batch. It does not cover the next page: there the first run reads the base
+list before it reads the root mount record. With an unwritable store the base list itself
+cannot be kept either, so every new page reads it again, with or without the mark.
+
 **`spec://` caches a path after its first read, for the life of the process.** Measured
 directly: after mounting the merged list, `coui://pa/units/unit_list.json` returned 575 units
 and `spec://pa/units/unit_list.json` still returned the 332 it had served earlier, while a
@@ -172,12 +188,18 @@ galaxy map but not the referee, and nothing a client mod can call clears the cac
 for the referee in `sessionStorage`, which lasts as long as the cache, and raises
 `unit_list_pinned`, telling the player to restart PA, when a later battle mount leaves a
 different one. The key is the merged units, sorted, so the order Community Mods lists the
-mods in does not count. With Community Mods' merge turned off, the referee reads whichever
-zip shadowed the path, which only the mounted set decides, so the key is that set. A merge
-with no faction list to add leaves the base list, keyed as an empty string. A merged list
-that could not be mounted says nothing about the set and is not checked;
-`unit_list_unmerged` already reports it. It costs one sort and one string comparison per
-battle mount, and no read.
+mods in does not count. With Community Mods' merge turned off, the referee reads the list of
+whichever zip shadowed the path, and only a zip that ships `pa/units/unit_list.json` can
+shadow it. The key is then the path and version of each zip whose
+`spec://server_mods/<id>/pa/units/unit_list.json` read returns a list, so enabling or
+updating a server mod with no unit list, such as an AI or a biome mod, leaves it alone. A new
+version of a zip that ships a list changes it even when the list is the same: `spec://` keeps
+that path's first read too, so the old and new lists cannot be compared. With no zip shipping
+a list, the key is the empty string, the same as a merge with no faction list to add, which
+leaves the base list. A merged list that could not be mounted says nothing about the set and
+is not checked; `unit_list_unmerged` already reports it. With the merge on it costs one sort
+and one string comparison per battle mount; with it off, one read of each zip's list as
+well.
 
 A battle with no server mods never reaches the merge, yet the referee still pins the base
 list. The patched `model.fight` marks its run with `battle: true`, and a marked run with no
@@ -457,10 +479,26 @@ battle. The residual risk is a server mod that ships split art but declares no
 
 ### The content catalogue
 
-Mounting makes files readable; it does not register models and textures with the
-renderer. `api.content.remount()` rebuilds that catalogue, and Community Mods does the
-same after mounting client zips. Without it every spec resolves and every unit is
-invisible.
+Mounting makes files readable. Whether the renderer uses them depends on whether the asset
+is already loaded in this process. Measured on build 124739 (CEF) on 2026-11-27, with probe
+zips that shadowed stock models and with server zips that add models at new paths:
+
+- A first load uses whatever is mounted at that moment, with or without a rebuild. Two fresh
+  co-op viewers mounted the server zips at `/` after their last rebuild, had none before the
+  battle, and drew a Legion commander whose model ships only in the server zip.
+- A mount on its own never changes an asset that is already loaded, even after the
+  filesystem refresh that the next memory-file mount logs.
+- `api.content.remount()` rebuilds the content catalogue and re-resolves every loaded asset
+  against what is mounted at that moment. A stock radar drew as the shadowing model after a
+  rebuild with the shadowing zip mounted, and went back to stock after later rebuilds that
+  ran without it. The VFS rebuild inside `Resetting game state` is assumed to do the same,
+  from its identical log block; it was not tested on its own.
+
+So the rebuild matters for the assets an earlier battle loaded. Community Mods rebuilds after
+mounting its client zips, and a rebuild that runs while the root zips are unmounted resolves
+those assets without them: stock art for a shadowed path. What a re-resolved model does when
+its path does not exist at all was not tested; a missing unit model has crashed the client
+before.
 
 It must **not** run during a battle: it blanks the scene, and the models are already
 loaded by then. Zip mounts themselves survive a remount - that was checked directly,
@@ -509,14 +547,14 @@ needed and where the launch panel accounts for the wait. `connect_to_game` runs 
 default options. The patched `model.fight` runs **without** the remount when
 `hooks.installed()` is true - every seam taken, the content accessor included - because
 the referee's own teardown then rebuilds the catalogue over the root zips through that
-accessor, and a rebuild before the fight would only be thrown away by the unmount that
-follows. Without the seams it keeps the default, so a battle can never start with the
-models unregistered.
+accessor, and a rebuild before the fight would only be superseded by that teardown's own
+rebuild. Without the seams it keeps the default, so a battle can never start with models
+that the last rebuild resolved without the root zips.
 
 That makes the coalescing in `run()` load-bearing rather than a convenience. Concurrent
 callers still share one run, except a caller that needs the remount while one that
-skipped it is in flight - sharing that would hand the battle a catalogue that was never
-rebuilt. It waits for the run in flight and then gets its own, queued rather than started
+skipped it is in flight - sharing that would hand the battle a catalogue that was last
+rebuilt without the root zips. It waits for the run in flight and then gets its own, queued rather than started
 so two runs never overlap their mounts. A root-only run in flight is the other exception:
 it merged no unit list and made no `/server_mods/<id>/` mounts, so a battle caller queues
 behind it the same way, while a root-only caller may still share a battle run, which does
@@ -667,6 +705,34 @@ scripts but only AI trees would lose them on a viewer; every server mod with bat
 scripts in the measured set (Bugs, Exiles, Experimentals, Thorosmen, Second Wave) also ships
 `pa/units`.
 
+The root mounts follow the same list. A server mod at `/` replaces base files on this client,
+so a viewer that mounted one the host does not run would read and draw content the battle
+does not use: a balance mod's unit specs in its UI, a replaced model or effect in its view.
+`manifest.serverModsToMount()` applies the same filter as the scene list, and a run and the
+content accessor's root batch mount only what it returns, with only those mods' companions.
+Stock resets `gw_campaign_role` to `solo` when a viewer leaves the session, is disconnected,
+or loads `gw_play` without `gw_campaign`, but not on `exitGame` (`gw_play.js:280`). After a
+viewer exits to the main menu that way, the role still reads `viewer` in `gw_start`. A war being
+created is never viewed, so `gw_start/mount.js` forgets the stored host list before it
+mounts.
+
+Root mounts only add. A server mod this client mounted earlier in the same session, in its
+own solo war for example, stays at `/` when it later views a host that does not run it, until
+PA restarts. Measured on build 124739: the join's two `Resetting game state` blocks did not
+unmount it, and its files still served in the viewer's co-op `gw_play`. A solo player who
+disables a faction mid-session keeps that zip mounted the same way.
+
+A viewer therefore merges a different unit list from the one its own server mods give. While
+viewing it neither records nor checks the `unit_list_pinned` key, and `verify()` does not
+probe `spec://pa/units/unit_list.json`: both exist for the referee, which only the host runs.
+Measured on build 124739 with a viewer whose own set had one more faction than the host's:
+
+- With the check, viewing and then playing solo in one session raised `unit_list_pinned`.
+  After a battle in between, `spec://` served the full solo list, so the alarm was false.
+- With the probe, the viewer's read pinned the host's 664-unit list. After leaving the
+  session `spec://` still served 664 while `coui://` served 687, so the next solo battle's
+  referee would have lost the extra faction.
+
 Where it runs: `live_game` (`ui.js`, which also loads the `shared_build` share,
 because `build.js` consumed that list before any scene script ran),
 `live_game_build_bar` and `live_game_players`. The main menu is not covered: a server
@@ -715,8 +781,10 @@ in one scene and the gate that reads it runs in another, and each scene is a sep
 with its own copy of this module. Held in memory alone, the gate never sees a
 classification and silently falls back to requiring everything.
 
-Until a classification exists the gate does require every active server mod, rather than
-none.
+The gate judges each mod on its own: an active server mod that no mount has classified
+yet is required, rather than dropped, whether or not the others have been classified. The
+classification only grows during a process, so a mod enabled after the last mount that ran
+has no entry until the next one.
 
 |                                 | Host publishes | Viewer reports                           |
 | ------------------------------- | -------------- | ---------------------------------------- |
@@ -748,6 +816,18 @@ The gate normalises identifiers to lower case on both sides, so that comparison 
 `model.gameModIdentifiers` goes back to the game instead - reconnect info and the beacon -
 where a mod installed as `qQuellerAI-dev` must not become `qquellerai-dev`. `manifest.js`
 carries both forms for that reason.
+
+`connect_to_game/start.js` adds them once `startGame` resolves. Every stock read of
+`model.gameModIdentifiers` that matters comes after the connect, which starts in the handler
+that stock attaches to `startGame`'s result (`connect_to_game.js:709`), so it waits for this
+step: `login_accepted` writes the reconnect record from it. The wrapper's own mount runs before Community Mods has read its installed-mods store
+(see [Server mod scene scripts](#server-mod-scene-scripts)), so the identifier step first
+waits for that store, `CommunityModsManager.installedMods.ready`, capped at 15 s. A list read
+before the store would be empty, nothing would be added, and `identifiers_lost` would have
+nothing to compare. The wait comes after the start, never before it, so the server is not held
+up. In two solo launches on build 124739 (CEF), 2026-11-27, the store settled 0.11 s and
+0.15 s after the start call and the server took 11.3 s and 21.6 s to listen, so the wait cost
+nothing; on the second launch stock's handlers ran 4 ms after the start resolved.
 
 ## Alarms
 
