@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed a rare case where Galactic War kept a faction's units after you disabled it, until PA was restarted
 - Fixed a rare case where co-op Galactic War let a player join without a server mod the host runs
 
 ## v1.6.1 - 2026-10-28
