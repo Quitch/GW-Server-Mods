@@ -350,6 +350,24 @@ describe("manifest.clientRelevantServerMods", () => {
     assert.equal(ns.manifest.relevanceKnown(), false);
     assert.deepEqual(ns.manifest.clientRelevantServerMods(), []);
   });
+
+  it("treats a persisted value that is not an object as unknown", () => {
+    for (const stored of ["null", "[]", "3", '"text"']) {
+      const { ns } = scene({
+        stubs: {
+          sessionStorage: fakeSessionStorage({ [RELEVANCE_KEY]: stored }),
+        },
+        cmmOptions: { serverMods: [mod({ identifier: "com.a" })] },
+      });
+
+      assert.equal(ns.manifest.relevanceKnown(), false, stored);
+      assert.deepEqual(
+        ns.manifest.serverModsToMatch().map((m) => m.identifier),
+        ["com.a"],
+        stored
+      );
+    }
+  });
 });
 
 describe("manifest.serverModsToMatch", () => {

@@ -232,6 +232,11 @@
     try {
       relevance = JSON.parse(sessionStorage.getItem(RELEVANCE_KEY) || "{}");
     } catch (e) {
+      relevance = null;
+    }
+
+    // Anything but an object, null included, reads as no classification.
+    if (!_.isPlainObject(relevance)) {
       relevance = {};
     }
 
