@@ -54,6 +54,8 @@ it, stock callers and other mods alike:
 | `api.file.unmountAllMemoryFiles`         | `gw_play/gw_referee.js:24`, `:202`, `replay_loading.js:158`, Community Mods `states/replay_loading.js:80`                                                                   |
 | `CommunityModsManager.remountClientMods` | `gw_play.js:202`, `:218`, Community Mods `transit.js:107`, `:130`, `start.js:332`, `gw_referee.js:20`                                                                       |
 | `api.net.startGame`                      | `connect_to_game.js:709`                                                                                                                                                    |
+| `api.content.remount`                    | Community Mods `community-mods-manager.js:3045`, inside `mountClientMods`                                                                                                   |
+| `model.fight`                            | GW-AI-Overhaul's own `model.fight` wrapper in `gw_play/launch_progress.js`, which passes it to `progress.settle`                                                            |
 | `ns.mount.run`                           | GW-AI-Overhaul `mountRoot` in `shared/race_mods.js`, through `$.when`                                                                                                       |
 | `ns.manifest.load`                       | GW-AI-Overhaul `installedRaces` in `shared/race_mods.js`, and `enabledServerZipMods`, `serve`, and `installedBiomeMods` in `shared/gwo_biome_mods.js`, all through `$.when` |
 | `ns.manifest.detectClientRelevance`      | nothing outside this mod today; it is on the public namespace and returns a promise                                                                                         |
@@ -477,10 +479,26 @@ battle. The residual risk is a server mod that ships split art but declares no
 
 ### The content catalogue
 
-Mounting makes files readable; it does not register models and textures with the
-renderer. `api.content.remount()` rebuilds that catalogue, and Community Mods does the
-same after mounting client zips. Without it every spec resolves and every unit is
-invisible.
+Mounting makes files readable. Whether the renderer uses them depends on whether the asset
+is already loaded in this process. Measured on build 124739 (CEF) on 2026-11-27, with probe
+zips that shadowed stock models and with server zips that add models at new paths:
+
+- A first load uses whatever is mounted at that moment, with or without a rebuild. Two fresh
+  co-op viewers mounted the server zips at `/` after their last rebuild, had none before the
+  battle, and drew a Legion commander whose model ships only in the server zip.
+- A mount on its own never changes an asset that is already loaded, even after the
+  filesystem refresh that the next memory-file mount logs.
+- `api.content.remount()` rebuilds the content catalogue and re-resolves every loaded asset
+  against what is mounted at that moment. A stock radar drew as the shadowing model after a
+  rebuild with the shadowing zip mounted, and went back to stock after later rebuilds that
+  ran without it. The VFS rebuild inside `Resetting game state` is assumed to do the same,
+  from its identical log block; it was not tested on its own.
+
+So the rebuild matters for the assets an earlier battle loaded. Community Mods rebuilds after
+mounting its client zips, and a rebuild that runs while the root zips are unmounted resolves
+those assets without them: stock art for a shadowed path. What a re-resolved model does when
+its path does not exist at all was not tested; a missing unit model has crashed the client
+before.
 
 It must **not** run during a battle: it blanks the scene, and the models are already
 loaded by then. Zip mounts themselves survive a remount - that was checked directly,
@@ -529,14 +547,14 @@ needed and where the launch panel accounts for the wait. `connect_to_game` runs 
 default options. The patched `model.fight` runs **without** the remount when
 `hooks.installed()` is true - every seam taken, the content accessor included - because
 the referee's own teardown then rebuilds the catalogue over the root zips through that
-accessor, and a rebuild before the fight would only be thrown away by the unmount that
-follows. Without the seams it keeps the default, so a battle can never start with the
-models unregistered.
+accessor, and a rebuild before the fight would only be superseded by that teardown's own
+rebuild. Without the seams it keeps the default, so a battle can never start with models
+that the last rebuild resolved without the root zips.
 
 That makes the coalescing in `run()` load-bearing rather than a convenience. Concurrent
 callers still share one run, except a caller that needs the remount while one that
-skipped it is in flight - sharing that would hand the battle a catalogue that was never
-rebuilt. It waits for the run in flight and then gets its own, queued rather than started
+skipped it is in flight - sharing that would hand the battle a catalogue that was last
+rebuilt without the root zips. It waits for the run in flight and then gets its own, queued rather than started
 so two runs never overlap their mounts. A root-only run in flight is the other exception:
 it merged no unit list and made no `/server_mods/<id>/` mounts, so a battle caller queues
 behind it the same way, while a root-only caller may still share a battle run, which does

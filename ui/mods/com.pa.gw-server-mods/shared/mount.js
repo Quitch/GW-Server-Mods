@@ -227,10 +227,8 @@
     contentRegisteredAt = generation;
   }
 
-  // spec:// rejects a query string, so cache-busting it returns 404.
-  // Mounting alone leaves models and textures unregistered with the renderer.
   // Skipped when the catalogue was already rebuilt over this generation's root
-  // mounts, by this mod or by Community Mods through the hooks.
+  // mounts, by this mod or by Community Mods through the hooks. See design.md.
   function remountContent(generation) {
     if (contentRegisteredAt === generation) {
       return Promise.resolve(false);
@@ -249,6 +247,7 @@
   }
 
   function readUnitList(url) {
+    // spec:// rejects a query string, so cache-busting it returns 404.
     return Promise.resolve(
       $.ajax({
         url: url,
@@ -878,10 +877,9 @@
 
   // A single unmount reaches here through two wrappers, and a full cycle costs
   // seconds, so concurrent callers share one run. A caller that needs the
-  // content remount is the exception: a run that skipped it leaves the models
-  // unregistered, so sharing one would start the battle with every unit
-  // invisible. That caller waits for the run in flight and then gets its own -
-  // queued rather than started, since two runs must not overlap their mounts.
+  // content remount is the exception (see design.md): it waits for the run in
+  // flight and then gets its own - queued rather than started, since two runs
+  // must not overlap their mounts.
   // A root-only run in flight is the other exception for a battle caller: it
   // merged nothing and made no /server_mods/<id>/ mounts, so only another
   // root-only caller may share it. So may no caller a run that read a
